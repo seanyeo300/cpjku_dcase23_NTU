@@ -70,6 +70,7 @@ class PLModule(pl.LightningModule):
 
 
         y_hat, embed = self.forward(x)
+        labels = labels.long()
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
 
         loss = samples_loss.mean()
@@ -118,7 +119,7 @@ class PLModule(pl.LightningModule):
             x = self.mel_forward(x)
 
         y_hat, embed = self.forward(x)
-
+        labels = labels.long()
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
         loss = samples_loss.mean()
 
@@ -232,7 +233,7 @@ def train(config):
     # on which kind of device(s) to train and possible callbacks
     trainer = pl.Trainer(max_epochs=config.n_epochs,
                          logger=wandb_logger,
-                         accelerator='auto',
+                         accelerator='gpu',
                          devices=1,
                          callbacks=[lr_monitor])
     # start training and validation for the specified number of epochs
@@ -245,7 +246,7 @@ if __name__ == '__main__':
     # general
     parser.add_argument('--project_name', type=str, default="DCASE23_Task1")
     parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training")
-    parser.add_argument('--num_workers', type=int, default=12)  # number of workers for dataloaders
+    parser.add_argument('--num_workers', type=int, default=8)  # number of workers for dataloaders
 
     # dataset
     # location to store resampled waveform

@@ -17,7 +17,7 @@ from helpers.utils import mixstyle
 from helpers import nessi
 
 
-class PLModule(pl.LightningModule):
+class PLModule(pl.LightningModule): # This Class gets the model settings and logmel spctrogram augmentation settings
     def __init__(self, config):
         super().__init__()
         self.config = config  # results from argparse and contains all configurations for our experiment
@@ -70,10 +70,10 @@ class PLModule(pl.LightningModule):
         :return: final model predictions
         """
         x = self.mel_forward(x)
-        x = self.model(x)
+        x = self.model(x.cuda())
         return x
 
-    def configure_optimizers(self):
+    def configure_optimizers(self): #automates optimzer.step() and other loss function related operations
         """
         This is the way pytorch lightening requires optimizers and learning rate schedulers to be defined.
         The specified items are used automatically in the optimization loop (no need to call optimizer.step() yourself).
@@ -97,13 +97,15 @@ class PLModule(pl.LightningModule):
                     other items that can be processed in 'training_epoch_end' to log other metrics than loss
         """
         x, file, labels, devices, cities, teacher_logits = train_batch
+        labels = labels.type(torch.LongTensor)
+        labels = labels.to(device=x.device)
         x = self.mel_forward(x)  # we convert the raw audio signals into log mel spectrograms
 
         if self.config.mixstyle_p > 0:
             # frequency mixstyle
             x = mixstyle(x, self.config.mixstyle_p, self.config.mixstyle_alpha)
-
-        y_hat = self.model(x)
+        
+        y_hat = self.model(x.cuda())
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
         label_loss = samples_loss.mean()
 
@@ -120,7 +122,7 @@ class PLModule(pl.LightningModule):
 
         return results
 
-    def training_epoch_end(self, outputs):
+    def training_epoch_end(self, outputs): # given 'outputs' retrieve the average losses from label_loss, kd_loss
         """
         :param outputs: contains the items you log in 'training_step'
         :return: a dict containing the metrics you want to log to Weights and Biases
@@ -132,8 +134,10 @@ class PLModule(pl.LightningModule):
 
     def validation_step(self, val_batch, batch_idx):
         x, files, labels, devices, cities = val_batch
+        labels = labels.type(torch.LongTensor)
+        labels = labels.to(device=x.device)
         x = self.mel_forward(x)
-        y_hat = self.model(x)
+        y_hat = self.model(x.cuda())
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
         loss = samples_loss.mean()
 
@@ -249,7 +253,7 @@ def train(config):
     # start training and validation for the specified number of epochs
     trainer.fit(pl_module, train_dl, test_dl)
 
-
+# All configs are manually set in the following section. There is no separate config file
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
