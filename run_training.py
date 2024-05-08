@@ -16,7 +16,7 @@ from helpers.lr_schedule import exp_warmup_linear_down
 from helpers.utils import mixstyle
 from helpers import nessi
 
-
+torch.set_float32_matmul_precision("high")
 class PLModule(pl.LightningModule): # This Class gets the model settings and logmel spctrogram augmentation settings
     def __init__(self, config):
         super().__init__()
@@ -260,7 +260,7 @@ if __name__ == '__main__':
     # general
     parser.add_argument('--project_name', type=str, default="DCASE23_Task1")
     parser.add_argument('--experiment_name', type=str, default="CPJKU_cp-mobile_student_training")
-    parser.add_argument('--num_workers', type=int, default=12)  # number of workers for dataloaders
+    parser.add_argument('--num_workers', type=int, default=8)  # number of workers for dataloaders
 
     # dataset
     # location to store resampled waveform
