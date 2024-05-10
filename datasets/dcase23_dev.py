@@ -12,21 +12,33 @@ from torch.hub import download_url_to_file
 
 
 dataset_dir = "D:\Sean\DCASE\datasets\Extract_to_Folder\TAU-urban-acoustic-scenes-2022-mobile-development"
+wave_dir =  "D:\Sean\DCASE\datasets\Extract_to_Folder\TAU-urban-acoustic-scenes-2022-mobile-development\wave_np"
 assert dataset_dir is not None, "Specify 'TAU Urban Acoustic Scenes 2022 Mobile dataset' location in variable " \
                                 "'dataset_dir'. The dataset can be downloaded from this URL:" \
                                 " https://zenodo.org/record/6337421"
 
 teacher_logits_url = "https://github.com/fschmid56/cpjku_dcase23/releases/download/ensemble_logits/ensemble_logits.pt"
 
+# dataset_config = {
+#     "dataset_name": "tau22",
+#     "meta_csv": os.path.join(dataset_dir, "meta.csv"),
+#     "train_files_csv": os.path.join(dataset_dir, "evaluation_setup", "fold1_train.csv"),
+#     "test_files_csv": os.path.join(dataset_dir, "evaluation_setup", "fold1_evaluate.csv"),
+#     "dirs_path": os.path.join("datasets", "dirs"),
+#     "logits_file": os.path.join("resources", "ensemble_logits.pt")
+# }
 dataset_config = {
-    "dataset_name": "tau22",
+    "dataset_name": "tau24",
     "meta_csv": os.path.join(dataset_dir, "meta.csv"),
-    "train_files_csv": os.path.join(dataset_dir, "evaluation_setup", "fold1_train.csv"),
-    "test_files_csv": os.path.join(dataset_dir, "evaluation_setup", "fold1_evaluate.csv"),
-    "dirs_path": os.path.join("datasets", "dirs"),
-    "logits_file": os.path.join("resources", "ensemble_logits.pt")
+    "split_path": "split_setup",
+    "split_url": "https://github.com/CPJKU/dcase2024_task1_baseline/releases/download/files/",
+    "test_split_csv": "test.csv",
+    "eval_dir": os.path.join(dataset_dir), 
+    "eval_meta_csv": os.path.join(dataset_dir, "split100.csv"), # to get the full prediction list with index intact
+    "logits_file": os.path.join("predictions","1ea864zz", "logits.pt") #specifies where the logit and predictions are stored. Still need to provide script with ckpt_id
+    # "eval_dir": os.path.join(dataset_dir, "TAU-urban-acoustic-scenes-2024-mobile-evaluation"), 
+    # "eval_meta_csv": os.path.join(dataset_dir,  "TAU-urban-acoustic-scenes-2024-mobile-evaluation", "meta.csv")
 }
-
 
 class BasicDCASE22Dataset(TorchDataset):
     """
@@ -244,3 +256,35 @@ def get_base_test_set(meta_csv, test_files_csv, cache_path, resample_rate):
     return ds
 
 
+class BasicDCASE24EvalDataset(TorchDataset):
+    """
+    Basic DCASE'24 Dataset: loads eval data from files
+    """
+
+    def __init__(self, meta_csv, eval_dir):
+        """
+        @param meta_csv: meta csv file for the dataset
+        @param eval_dir: directory containing evaluation set
+        return: waveform, file
+        """
+        df = pd.read_csv(meta_csv, sep="\t")
+        self.files = df[['filename']].values.reshape(-1)
+        self.eval_dir = eval_dir
+
+    def __getitem__(self, index):
+        X = np.load(os.path.join(wave_dir, self.files[index],'.npy')) # Assuming waveforms are stored as .npy files
+        return X, self.files[index]
+
+    def __len__(self):
+        return len(self.files)
+
+
+def get_eval_set():
+    assert os.path.exists(dataset_config['eval_dir']), f"No such folder: {dataset_config['eval_dir']}"
+    ds = get_base_eval_set(dataset_config['eval_meta_csv'], dataset_config['eval_dir'])
+    return ds
+
+
+def get_base_eval_set(meta_csv, eval_dir):
+    ds = BasicDCASE24EvalDataset(meta_csv, eval_dir)
+    return ds

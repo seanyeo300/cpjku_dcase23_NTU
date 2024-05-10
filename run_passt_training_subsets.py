@@ -13,8 +13,8 @@ from helpers.init import worker_init_fn
 from models.passt import get_model
 from models.mel import AugmentMelSTFT
 from helpers import nessi
-from datasets.dcase23_dev import get_training_set, get_test_set
-
+from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
+import json
 
 class PLModule(pl.LightningModule):
     def __init__(self, config):
@@ -195,8 +195,8 @@ def train(config):
     # logging is done using wandb
     wandb_logger = WandbLogger(
         project=config.project_name,
-        notes="CPJKU pipeline for DCASE23 Task 1.",
-        tags=["DCASE23"],
+        notes="PaSST Training for DCASE2024, incl subset rules.",
+        tags=["DCASE24"],
         config=config,  # this logs all hyperparameters for us
         name=config.experiment_name
     )
@@ -239,19 +239,106 @@ def train(config):
     # start training and validation for the specified number of epochs
     trainer.fit(pl_module, train_dl, test_dl)
 
+def evaluate(config):
+    import os
+    from sklearn import preprocessing
+    import pandas as pd
+    import torch.nn.functional as F
+    from datasets.dcase23_dev import dataset_config
 
+    assert config.ckpt_id is not None, "A value for argument 'ckpt_id' must be provided."
+    ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
+    assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
+    #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
+    ckpt_file = os.path.join(ckpt_dir, "xyz.ckpt") # Change the path to the model path desired
+    assert os.path.exists(ckpt_file), f"No such file: {ckpt_file}. Implement your own mechanism to select" \
+                                      f"the desired checkpoint."
+
+    # create folder to store predictions
+    os.makedirs("predictions", exist_ok=True)
+    out_dir = os.path.join("predictions", config.ckpt_id)
+    os.makedirs(out_dir, exist_ok=True)
+
+    # load lightning module from checkpoint
+    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    trainer = pl.Trainer(logger=False,
+                         accelerator='gpu',
+                         devices=1,
+                         precision=config.precision)
+
+    # evaluate lightning module on development-test split
+    test_dl = DataLoader(dataset=get_test_set(),
+                         worker_init_fn=worker_init_fn,
+                         num_workers=config.num_workers,
+                         batch_size=config.batch_size)
+
+    # get model complexity from nessi
+    sample = next(iter(test_dl))[0][0].unsqueeze(0).to(pl_module.device)
+    shape = pl_module.mel_forward(sample).size()
+    macs, params = nessi.get_torch_size(pl_module.model, input_size=shape)
+
+    print(f"Model Complexity: MACs: {macs}, Params: {params}")
+    assert macs <= nessi.MAX_MACS, "The model exceeds the MACs limit and must not be submitted to the challenge!"
+    assert params <= nessi.MAX_PARAMS_MEMORY, \
+        "The model exceeds the parameter limit and must not be submitted to the challenge!"
+
+    allowed_precision = int(nessi.MAX_PARAMS_MEMORY / params * 8)
+    print(f"ATTENTION: According to the number of model parameters and the memory limits that apply in the challenge,"
+          f" you are allowed to use at max the following precision for model parameters: {allowed_precision} bit.")
+
+    # obtain and store details on model for reporting in the technical report
+    info = {}
+    info['MACs'] = macs
+    info['Params'] = params
+    res = trainer.test(pl_module, test_dl)
+    info['test'] = res
+
+    # generate predictions on evaluation set
+    eval_dl = DataLoader(dataset=get_eval_set(),
+                         worker_init_fn=worker_init_fn,
+                         num_workers=config.num_workers,
+                         batch_size=config.batch_size)
+
+    predictions = trainer.predict(pl_module, dataloaders=eval_dl)
+    # all filenames
+    all_files = [item[len("audio/"):] for files, _ in predictions for item in files]
+    # all predictions
+    all_predictions = torch.cat([torch.as_tensor(p) for _, p in predictions], 0)
+    all_predictions = F.softmax(all_predictions.float(), dim=1)
+
+    # write eval set predictions to csv file
+    df = pd.read_csv(dataset_config['meta_csv'], sep="\t")
+    le = preprocessing.LabelEncoder()
+    le.fit_transform(df[['scene_label']].values.reshape(-1))
+    class_names = le.classes_
+    df = {'filename': all_files}
+    scene_labels = [class_names[i] for i in torch.argmax(all_predictions, dim=1)]
+    df['scene_label'] = scene_labels
+    for i, label in enumerate(class_names):
+        df[label] = all_predictions[:, i]
+    df = pd.DataFrame(df)
+
+    # save eval set predictions, model state_dict and info to output folder
+    df.to_csv(os.path.join(out_dir, 'output.csv'), sep='\t', index=False)
+    torch.save(pl_module.model.state_dict(), os.path.join(out_dir, "model_state_dict.pt"))
+    with open(os.path.join(out_dir, "info.json"), "w") as json_file:
+        json.dump(info, json_file)
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
     # general
-    parser.add_argument('--project_name', type=str, default="DCASE23_Task1")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training")
+    parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
+    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_44100_noroll")
     parser.add_argument('--num_workers', type=int, default=8)  # number of workers for dataloaders
+
+    # evaluation
+    parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
+    parser.add_argument('--ckpt_id', type=str, default=None)  # for loading trained model, corresponds to wandb id
 
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-
+    parser.add_argument('--subset', type=int, default=5)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
@@ -265,8 +352,8 @@ if __name__ == '__main__':
     parser.add_argument('--mixstyle_p', type=float, default=0.4)  # frequency mixstyle
     parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
     parser.add_argument('--weight_decay', type=float, default=0.001)
-    parser.add_argument('--roll', type=int, default=10_000)  # roll waveform over time
-    parser.add_argument('--dir_prob', type=float, default=0.6)  # prob. to apply device impulse response augmentation # need to specify
+    parser.add_argument('--roll', type=int, default=0)  # roll waveform over time
+    parser.add_argument('--dir_prob', type=float, default=0)  # prob. to apply device impulse response augmentation # need to specify
 
     # learning rate + schedule
     # phases:
@@ -281,7 +368,7 @@ if __name__ == '__main__':
     parser.add_argument('--last_lr_value', type=float, default=0.01)  # relative to 'lr'
 
     # preprocessing
-    parser.add_argument('--resample_rate', type=int, default=32000)
+    parser.add_argument('--resample_rate', type=int, default=44100) # default =32000
     parser.add_argument('--window_size', type=int, default=800)  # in samples
     parser.add_argument('--hop_size', type=int, default=320)  # in samples
     parser.add_argument('--n_fft', type=int, default=1024)  # length (points) of fft
