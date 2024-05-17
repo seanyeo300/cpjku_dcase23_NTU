@@ -16,6 +16,8 @@ from helpers import nessi
 from datasets.dcase23 import get_training_set, get_test_set
 
 
+torch.set_float32_matmul_precision("high")
+
 class PLModule(pl.LightningModule):
     def __init__(self, config):
         super(PLModule, self).__init__()

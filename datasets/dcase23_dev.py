@@ -9,10 +9,10 @@ import numpy as np
 import librosa
 import torch.nn.functional as F
 from torch.hub import download_url_to_file
+import torchaudio
 
-
-dataset_dir = "D:\Sean\DCASE\datasets\Extract_to_Folder\TAU-urban-acoustic-scenes-2022-mobile-development"
-wave_dir =  "D:\Sean\DCASE\datasets\Extract_to_Folder\TAU-urban-acoustic-scenes-2022-mobile-development\wave_np"
+dataset_dir = "D:\Sean\DCASE\datasets\Extract_to_Folder\TAU-urban-acoustic-scenes-2022-mobile-development\\"
+# wave_dir =  "D:\Sean\DCASE\datasets\Extract_to_Folder\TAU-urban-acoustic-scenes-2022-mobile-development\wave_np"
 assert dataset_dir is not None, "Specify 'TAU Urban Acoustic Scenes 2022 Mobile dataset' location in variable " \
                                 "'dataset_dir'. The dataset can be downloaded from this URL:" \
                                 " https://zenodo.org/record/6337421"
@@ -35,7 +35,8 @@ dataset_config = {
     "test_split_csv": "test.csv",
     "eval_dir": os.path.join(dataset_dir), 
     "eval_meta_csv": os.path.join(dataset_dir, "split100.csv"), # to get the full prediction list with index intact
-    "logits_file": os.path.join("predictions","1ea864zz", "logits.pt") #specifies where the logit and predictions are stored. Still need to provide script with ckpt_id
+    "logits_file": os.path.join("resources", "ensemble_logits.pt")
+    #"logits_file": os.path.join("predictions","1ea864zz", "logits.pt") #specifies where the logit and predictions are stored. Still need to provide script with ckpt_id
     # "eval_dir": os.path.join(dataset_dir, "TAU-urban-acoustic-scenes-2024-mobile-evaluation"), 
     # "eval_meta_csv": os.path.join(dataset_dir,  "TAU-urban-acoustic-scenes-2024-mobile-evaluation", "meta.csv")
 }
@@ -85,7 +86,7 @@ class BasicDCASE22Dataset(TorchDataset):
 
 class SimpleSelectionDataset(TorchDataset):
     """A dataset that selects a subsample from a dataset based on a set of sample ids.
-        Supporting integer indexing in range from 0 to len(self) exclusive.
+        Supporting integer indexing in range from 0 to  (self) exclusive.
     """
 
     def __init__(self, dataset, available_indices):
@@ -207,7 +208,18 @@ class AddLogitsDataset(TorchDataset):
 #         ds = RollDataset(ds, shift_range=roll)
 #     return ds
 
-def get_training_set(cache_path=None, resample_rate=32000, roll=False, dir_prob=0, temperature=2, split=100):
+# This new get_training_set introduces the split functionality needed for DCASE 2024
+
+# def get_base_training_set(meta_csv, train_files_csv, cache_path, resample_rate, temperature):
+#     train_files = pd.read_csv(train_files_csv, sep='\t')['filename'].values.reshape(-1)
+#     meta = pd.read_csv(meta_csv, sep="\t")
+#     train_indices = list(meta[meta['filename'].isin(train_files)].index)
+#     ds = SimpleSelectionDataset(BasicDCASE22Dataset(meta_csv, sr=resample_rate, cache_path=cache_path), train_indices)
+#     ds = AddLogitsDataset(ds, train_indices, dataset_config['logits_file'], temperature)
+#     return ds
+# This new get_base_training_set introduces the split functionality needed for DCASE 2024
+
+def get_training_set(cache_path=None, split=100, resample_rate=32000, roll=False, dir_prob=0, temperature=2):
     assert str(split) in ("5", "10", "25", "50", "100"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
     os.makedirs(dataset_config['split_path'], exist_ok=True)
     subset_fname = f"split{split}.csv"
@@ -225,13 +237,6 @@ def get_training_set(cache_path=None, resample_rate=32000, roll=False, dir_prob=
         ds = RollDataset(ds, shift_range=roll)
     return ds
 
-def get_base_training_set(meta_csv, train_files_csv, cache_path, resample_rate, temperature):
-    train_files = pd.read_csv(train_files_csv, sep='\t')['filename'].values.reshape(-1)
-    meta = pd.read_csv(meta_csv, sep="\t")
-    train_indices = list(meta[meta['filename'].isin(train_files)].index)
-    ds = SimpleSelectionDataset(BasicDCASE22Dataset(meta_csv, sr=resample_rate, cache_path=cache_path), train_indices)
-    ds = AddLogitsDataset(ds, train_indices, dataset_config['logits_file'], temperature)
-    return ds
 
 def get_base_training_set(meta_csv, train_files_csv, cache_path, resample_rate, temperature):
     meta = pd.read_csv(meta_csv, sep="\t")
@@ -243,10 +248,16 @@ def get_base_training_set(meta_csv, train_files_csv, cache_path, resample_rate, 
     return ds
 
 def get_test_set(cache_path=None, resample_rate=32000):
-    ds = get_base_test_set(dataset_config['meta_csv'], dataset_config['test_files_csv'], cache_path,
+    os.makedirs(dataset_config['split_path'], exist_ok=True)
+    test_split_csv = os.path.join(dataset_config['split_path'], dataset_config['test_split_csv'])
+    if not os.path.isfile(test_split_csv):
+        # download test.csv (file containing all audio snippets for development-test split)
+        test_csv_url = dataset_config['split_url'] + dataset_config['test_split_csv']
+        print(f"Downloading file: {dataset_config['test_split_csv']}")
+        download_url_to_file(test_csv_url, test_split_csv)
+    ds = get_base_test_set(dataset_config['meta_csv'], test_split_csv, cache_path,
                            resample_rate)
     return ds
-
 
 def get_base_test_set(meta_csv, test_files_csv, cache_path, resample_rate):
     test_files = pd.read_csv(test_files_csv, sep='\t')['filename'].values.reshape(-1)
@@ -261,7 +272,7 @@ class BasicDCASE24EvalDataset(TorchDataset):
     Basic DCASE'24 Dataset: loads eval data from files
     """
 
-    def __init__(self, meta_csv, eval_dir):
+    def __init__(self, meta_csv, eval_dir, sr=44100):
         """
         @param meta_csv: meta csv file for the dataset
         @param eval_dir: directory containing evaluation set
@@ -270,11 +281,12 @@ class BasicDCASE24EvalDataset(TorchDataset):
         df = pd.read_csv(meta_csv, sep="\t")
         self.files = df[['filename']].values.reshape(-1)
         self.eval_dir = eval_dir
+        self.sr = sr
 
     def __getitem__(self, index):
-        X = np.load(os.path.join(wave_dir, self.files[index],'.npy')) # Assuming waveforms are stored as .npy files
-        return X, self.files[index]
-
+        sig, _ = librosa.load(os.path.join(self.eval_dir, self.files[index]), sr=self.sr, mono=True)
+        sig = torch.from_numpy(sig[np.newaxis]) # if using librosa, need this.If torchvision, comment this out
+        return sig, self.files[index]
     def __len__(self):
         return len(self.files)
 

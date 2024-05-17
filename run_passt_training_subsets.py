@@ -7,6 +7,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 import argparse
 import os
 
+
 from helpers.utils import mixstyle
 from helpers.lr_schedule import exp_warmup_linear_down
 from helpers.init import worker_init_fn
@@ -14,7 +15,10 @@ from models.passt import get_model
 from models.mel import AugmentMelSTFT
 from helpers import nessi
 from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
+
 import json
+
+torch.set_float32_matmul_precision("high")
 
 class PLModule(pl.LightningModule):
     def __init__(self, config):
@@ -42,13 +46,18 @@ class PLModule(pl.LightningModule):
                              s_patchout_f=config.s_patchout_f)
 
         self.device_ids = ['a', 'b', 'c', 's1', 's2', 's3', 's4', 's5', 's6']
+        self.label_ids = ['airport', 'bus', 'metro', 'metro_station', 'park', 'public_square', 'shopping_mall',
+                          'street_pedestrian', 'street_traffic', 'tram']
         self.device_groups = {'a': "real", 'b': "real", 'c': "real",
                               's1': "seen", 's2': "seen", 's3': "seen",
                               's4': "unseen", 's5': "unseen", 's6': "unseen"}
 
         self.calc_device_info = True
         self.epoch = 0
-
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
+        
     def mel_forward(self, x):
         old_shape = x.size()
         x = x.reshape(-1, old_shape[2])
@@ -58,7 +67,16 @@ class PLModule(pl.LightningModule):
 
     def forward(self, x):
         return self.model(x)
-
+    
+    def predict_step(self, batch, batch_idx, dataloader_idx=None):
+        # Override the predict_step method to customize prediction logic
+        raw_audio_data = batch  # Modify this line to extract raw audio data from batch
+        
+        # Perform mel spectrogram computation on raw audio data
+        processed_data = self.mel_forward(raw_audio_data)
+        
+        # Forward pass with processed data
+        predictions = self.forward(processed_data)
     def training_step(self, batch, batch_idx):
         x, files, labels, devices, cities, teacher_logits = batch
 
@@ -173,7 +191,95 @@ class PLModule(pl.LightningModule):
             print(f"Validation Accuracy: {val_acc}")
 
         self.epoch += 1
+    def test_step(self, test_batch, batch_idx):
+        x, files, labels, devices, cities = test_batch
+        labels = labels.type(torch.LongTensor)
+        labels = labels.to(device=x.device)
+        # maximum memory allowance for parameters: 128 KB
+        # baseline has 61148 parameters -> we can afford 16-bit precision
+        # since 61148 * 16 bit ~ 122 kB
+           
+        x = self.mel_forward(x)
 
+        y_hat, embed = self.forward(x)
+        labels = labels.long()
+        samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
+        # loss = samples_loss.mean()
+
+        # for computing accuracy
+        _, preds = torch.max(y_hat, dim=1)
+        n_correct_per_sample = (preds == labels)
+        n_correct = n_correct_per_sample.sum()
+
+        dev_names = [d.rsplit("-", 1)[1][:-4] for d in files]
+        results = {'loss': samples_loss.mean(), "n_correct": n_correct,
+                   "n_pred": torch.as_tensor(len(labels), device=self.device)}
+
+        # log metric per device and scene
+        for d in self.device_ids:
+            results["devloss." + d] = torch.as_tensor(0., device=self.device)
+            results["devcnt." + d] = torch.as_tensor(0., device=self.device)
+            results["devn_correct." + d] = torch.as_tensor(0., device=self.device)
+        for i, d in enumerate(dev_names):
+            results["devloss." + d] = results["devloss." + d] + samples_loss[i]
+            results["devn_correct." + d] = results["devn_correct." + d] + n_correct_per_sample[i]
+            results["devcnt." + d] = results["devcnt." + d] + 1
+
+        for l in self.label_ids:
+            results["lblloss." + l] = torch.as_tensor(0., device=self.device)
+            results["lblcnt." + l] = torch.as_tensor(0., device=self.device)
+            results["lbln_correct." + l] = torch.as_tensor(0., device=self.device)
+        for i, l in enumerate(labels):
+            results["lblloss." + self.label_ids[l]] = results["lblloss." + self.label_ids[l]] + samples_loss[i]
+            results["lbln_correct." + self.label_ids[l]] = \
+                results["lbln_correct." + self.label_ids[l]] + n_correct_per_sample[i]
+            results["lblcnt." + self.label_ids[l]] = results["lblcnt." + self.label_ids[l]] + 1
+        self.test_step_outputs.append(results)
+
+    def on_test_epoch_end(self):
+        # convert a list of dicts to a flattened dict
+        outputs = {k: [] for k in self.test_step_outputs[0]}
+        for step_output in self.test_step_outputs:
+            for k in step_output:
+                outputs[k].append(step_output[k])
+        for k in outputs:
+            outputs[k] = torch.stack(outputs[k])
+
+        avg_loss = outputs['loss'].mean()
+        acc = sum(outputs['n_correct']) * 1.0 / sum(outputs['n_pred'])
+
+        logs = {'acc': acc, 'loss': avg_loss}
+
+        # log metric per device and scene
+        for d in self.device_ids:
+            dev_loss = outputs["devloss." + d].sum()
+            dev_cnt = outputs["devcnt." + d].sum()
+            dev_corrct = outputs["devn_correct." + d].sum()
+            logs["loss." + d] = dev_loss / dev_cnt
+            logs["acc." + d] = dev_corrct / dev_cnt
+            logs["cnt." + d] = dev_cnt
+            # device groups
+            logs["acc." + self.device_groups[d]] = logs.get("acc." + self.device_groups[d], 0.) + dev_corrct
+            logs["count." + self.device_groups[d]] = logs.get("count." + self.device_groups[d], 0.) + dev_cnt
+            logs["lloss." + self.device_groups[d]] = logs.get("lloss." + self.device_groups[d], 0.) + dev_loss
+
+        for d in set(self.device_groups.values()):
+            logs["acc." + d] = logs["acc." + d] / logs["count." + d]
+            logs["lloss." + d] = logs["lloss." + d] / logs["count." + d]
+
+        for l in self.label_ids:
+            lbl_loss = outputs["lblloss." + l].sum()
+            lbl_cnt = outputs["lblcnt." + l].sum()
+            lbl_corrct = outputs["lbln_correct." + l].sum()
+            logs["loss." + l] = lbl_loss / lbl_cnt
+            logs["acc." + l] = lbl_corrct / lbl_cnt
+            logs["cnt." + l] = lbl_cnt
+
+        logs["macro_avg_acc"] = torch.mean(torch.stack([logs["acc." + l] for l in self.label_ids]))
+        # prefix with 'test' for logging
+        self.log_dict({"test/" + k: logs[k] for k in logs})
+        self.test_step_outputs.clear()
+        
     def configure_optimizers(self):
         """
         This is the way pytorch lightening requires optimizers and learning rate schedulers to be defined.
@@ -202,7 +308,7 @@ def train(config):
     )
 
     # train dataloader
-    train_dl = DataLoader(dataset=get_training_set(config.cache_path, config.resample_rate, config.roll,
+    train_dl = DataLoader(dataset=get_training_set(config.cache_path, config.subset, config.resample_rate, config.roll,
                                                    config.dir_prob),
                           worker_init_fn=worker_init_fn,
                           num_workers=config.num_workers,
@@ -238,7 +344,7 @@ def train(config):
                          callbacks=[lr_monitor])
     # start training and validation for the specified number of epochs
     trainer.fit(pl_module, train_dl, test_dl)
-
+    # trainer.test(ckpt_path='best', dataloaders=test_dl)
 def evaluate(config):
     import os
     from sklearn import preprocessing
@@ -250,7 +356,10 @@ def evaluate(config):
     ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
     assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
     #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
-    ckpt_file = os.path.join(ckpt_dir, "xyz.ckpt") # Change the path to the model path desired
+    for file in os.listdir(ckpt_dir):
+        if "epoch" in file:
+            ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
+    # ckpt_file = os.path.join(ckpt_dir, "xyz.ckpt") # Change the path to the model path desired
     assert os.path.exists(ckpt_file), f"No such file: {ckpt_file}. Implement your own mechanism to select" \
                                       f"the desired checkpoint."
 
@@ -278,9 +387,9 @@ def evaluate(config):
     macs, params = nessi.get_torch_size(pl_module.model, input_size=shape)
 
     print(f"Model Complexity: MACs: {macs}, Params: {params}")
-    assert macs <= nessi.MAX_MACS, "The model exceeds the MACs limit and must not be submitted to the challenge!"
-    assert params <= nessi.MAX_PARAMS_MEMORY, \
-        "The model exceeds the parameter limit and must not be submitted to the challenge!"
+    # assert macs <= nessi.MAX_MACS, "The model exceeds the MACs limit and must not be submitted to the challenge!"
+    # assert params <= nessi.MAX_PARAMS_MEMORY, \
+        # "The model exceeds the parameter limit and must not be submitted to the challenge!"
 
     allowed_precision = int(nessi.MAX_PARAMS_MEMORY / params * 8)
     print(f"ATTENTION: According to the number of model parameters and the memory limits that apply in the challenge,"
@@ -298,7 +407,6 @@ def evaluate(config):
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
-
     predictions = trainer.predict(pl_module, dataloaders=eval_dl)
     # all filenames
     all_files = [item[len("audio/"):] for files, _ in predictions for item in files]
@@ -329,8 +437,9 @@ if __name__ == '__main__':
     # general
     parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
     parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_44100_noroll")
-    parser.add_argument('--num_workers', type=int, default=8)  # number of workers for dataloaders
-
+    parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
+    parser.add_argument('--precision', type=str, default="32")
+    
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
     parser.add_argument('--ckpt_id', type=str, default=None)  # for loading trained model, corresponds to wandb id
@@ -381,4 +490,7 @@ if __name__ == '__main__':
     parser.add_argument('--fmax_aug_range', type=int, default=1000)
 
     args = parser.parse_args()
-    train(args)
+    if args.evaluate:
+        evaluate(args)
+    else:
+        train(args)

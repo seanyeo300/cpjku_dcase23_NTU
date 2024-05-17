@@ -14,7 +14,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import numpy as np
 from timm.models.layers.helpers import to_2tuple
 
 from models.helpers.vit_helpers import DropPath, trunc_normal_, build_model_with_cfg
@@ -294,9 +294,13 @@ class PatchEmbed(nn.Module):
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 
     def forward(self, x):
-        B, C, H, W = x.shape
-        if not (H == self.img_size[0] and W == self.img_size[1]):
-            warnings.warn(f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]}).")
+        # print(x)
+        try:
+            B, C, H, W = x.shape
+            if not (H == self.img_size[0] and W == self.img_size[1]):
+                warnings.warn(f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]}).")
+        except AttributeError:
+            pass 
         # to do maybe replace weights
         x = self.proj(x)
         if self.flatten:
@@ -319,6 +323,7 @@ class Attention(nn.Module):
         self.proj_drop = nn.Dropout(proj_drop)
 
     def forward(self, x):
+        # print(x)
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)

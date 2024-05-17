@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch.distributions.beta import Beta
 from pytorch_lightning.callbacks import Callback
-
+import torchinfo
 
 def mixstyle(x, p=0.4, alpha=0.4, eps=1e-6):
     if np.random.rand() > p:
@@ -46,3 +46,6 @@ class QuantParamFreezeCallback(Callback):
             pl_module.model.apply(torch.ao.quantization.disable_observer)
             # Freeze batch norm mean and variance estimates
             pl_module.model.apply(torch.nn.intrinsic.qat.freeze_bn_stats)
+def get_torch_size(model, input_size):
+    model_profile = torchinfo.summary(model, input_size=input_size)
+    return model_profile.total_mult_adds, model_profile.total_params

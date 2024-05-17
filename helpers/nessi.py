@@ -3,8 +3,10 @@
 
 import torchinfo
 
+MAX_PARAMS_MEMORY = 128_000
+MAX_MACS = 30_000_000
 
-def get_model_size(model, input_size):
+def get_torch_size(model, input_size):
     model_profile = torchinfo.summary(
         model,
         input_size=input_size
