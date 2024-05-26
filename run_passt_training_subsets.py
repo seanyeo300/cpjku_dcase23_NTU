@@ -68,15 +68,13 @@ class PLModule(pl.LightningModule):
     def forward(self, x):
         return self.model(x)
     
-    def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        # Override the predict_step method to customize prediction logic
-        raw_audio_data = batch  # Modify this line to extract raw audio data from batch
-        
-        # Perform mel spectrogram computation on raw audio data
-        processed_data = self.mel_forward(raw_audio_data)
-        
-        # Forward pass with processed data
-        predictions = self.forward(processed_data)
+    def predict_step(self, eval_batch, batch_idx, dataloader_idx=0):
+        x, files = eval_batch
+        x = self.mel_forward(x)
+        # x = x.half()
+        y_hat, embed = self.forward(x)
+
+        return files, y_hat
     def training_step(self, batch, batch_idx):
         x, files, labels, devices, cities, teacher_logits = batch
 
@@ -329,22 +327,27 @@ def train(config):
     # reported in the challenge submission
     sample = next(iter(train_dl))[0][0].unsqueeze(0)
     shape = pl_module.mel_forward(sample).size()
-    macs, params = nessi.get_model_size(pl_module.model, input_size=shape)
+    macs, params = nessi.get_torch_size(pl_module.model, input_size=shape)
     wandb_logger.experiment.config['MACs'] = macs
     wandb_logger.experiment.config['Parameters'] = params
 
     # create monitor to keep track of learning rate - we want to check the behaviour of our learning rate schedule
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(
+        save_last=True, 
+        monitor="validation.loss", 
+        save_top_k=1)
     # create the pytorch lightening trainer by specifying the number of epochs to train, the logger,
     # on which kind of device(s) to train and possible callbacks
     trainer = pl.Trainer(max_epochs=config.n_epochs,
                          logger=wandb_logger,
                          accelerator='gpu',
                          devices=1,
-                         callbacks=[lr_monitor])
+                         callbacks=[lr_monitor, checkpoint_callback])
     # start training and validation for the specified number of epochs
     trainer.fit(pl_module, train_dl, test_dl)
-    # trainer.test(ckpt_path='best', dataloaders=test_dl)
+    trainer.test(ckpt_path='best', dataloaders=test_dl)
+    
 def evaluate(config):
     import os
     from sklearn import preprocessing
@@ -407,12 +410,12 @@ def evaluate(config):
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
-    predictions = trainer.predict(pl_module, dataloaders=eval_dl)
+    predictions = trainer.predict(pl_module, dataloaders=eval_dl) # predictions returns as files, y_hat
     # all filenames
     all_files = [item[len("audio/"):] for files, _ in predictions for item in files]
     # all predictions
-    all_predictions = torch.cat([torch.as_tensor(p) for _, p in predictions], 0)
-    all_predictions = F.softmax(all_predictions.float(), dim=1)
+    logits = torch.cat([torch.as_tensor(p) for _, p in predictions], 0)
+    all_predictions = F.softmax(logits.float(), dim=1)
 
     # write eval set predictions to csv file
     df = pd.read_csv(dataset_config['meta_csv'], sep="\t")
@@ -423,7 +426,7 @@ def evaluate(config):
     scene_labels = [class_names[i] for i in torch.argmax(all_predictions, dim=1)]
     df['scene_label'] = scene_labels
     for i, label in enumerate(class_names):
-        df[label] = all_predictions[:, i]
+        df[label] = logits[:, i]
     df = pd.DataFrame(df)
 
     # save eval set predictions, model state_dict and info to output folder
@@ -436,7 +439,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_44100_noroll")
+    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_sub100")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -447,7 +450,7 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=5)
+    parser.add_argument('--subset', type=int, default=100)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
