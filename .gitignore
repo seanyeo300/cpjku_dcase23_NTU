@@ -4,3 +4,4 @@ resources/*.npy
 .idea
 .git
 wandb
+datasets/cpath
