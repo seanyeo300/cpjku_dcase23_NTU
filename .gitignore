@@ -5,3 +5,4 @@ resources/*.npy
 .git
 wandb
 datasets/cpath
+DCASE23_Task1
