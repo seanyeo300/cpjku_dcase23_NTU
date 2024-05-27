@@ -88,9 +88,31 @@ class PLModule(pl.LightningModule):
         y_hat, embed = self.forward(x)
         labels = labels.long()
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
-
-        loss = samples_loss.mean()
-        samples_loss = samples_loss.detach()
+        softmax_y = F.softmax(y_hat,-1)
+        entropy_loss = F.cross_entropy(y_hat,softmax_y, reduction= "none")
+        print(f"entropy loss before .mean: {entropy_loss}")
+        entropy_loss = entropy_loss.mean()
+        print(f"entropy loss after .mean: {entropy_loss}")
+        dt = F.softmax(y_hat, -1) - F.softmax(teacher_logits, -1)
+        y_d = y_hat + dt
+        loss_cls = F.cross_entropy(y_d,labels, reduction="none")
+        print(f"loss cls before .mean: {loss_cls}")
+        loss_cls = F.cross_entropy(y_d,labels, reduction="none").mean()
+        print(f"loss cls after .mean: {loss_cls}")
+        # print(labels)
+        one_hot_labels = F.one_hot(labels, num_classes=10)
+        multi_warm_lb = F.softmax(teacher_logits/2, -1) > 1.0/teacher_logits.size(-1)           # eqn(4)* see lab notebook
+        multi_warm_lb = torch.clamp(multi_warm_lb.double() + one_hot_labels, 0, 1)              # eqn(5) .double sets data type to float 64 instead of int 0,1
+        multi_warm_lb = multi_warm_lb/torch.sum(multi_warm_lb, -1, keepdim = True)                # eqn(6)
+        R_attention = F.cross_entropy(y_hat, multi_warm_lb.detach(), reduction = "none")
+        print(f"R_attention before .mean: {R_attention}")
+        R_attention = F.cross_entropy(y_hat, multi_warm_lb.detach(), reduction = "none").mean()
+        print(f"R_attention after .mean: {R_attention}")# eqn(10)
+        loss = loss_cls + R_attention - entropy_loss
+        loss = loss.detach()
+        # loss = loss.mean() # currently, mean after adding
+        # loss = samples_loss.mean()
+        # samples_loss = samples_loss.detach()
 
         _, preds = torch.max(y_hat, dim=1)
         n_correct_pred = (preds == labels).sum()
@@ -104,7 +126,7 @@ class PLModule(pl.LightningModule):
                 results["devcnt." + d] = torch.as_tensor(0., device=self.device)
 
             for i, d in enumerate(devices):
-                results["devloss." + d] = results["devloss." + d] + samples_loss[i]
+                results["devloss." + d] = results["devloss." + d] + loss[i]
                 results["devcnt." + d] = results["devcnt." + d] + 1.
 
         return results
@@ -439,7 +461,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_sub5_vanilla")
+    parser.add_argument('--experiment_name', type=str, default="FocusNet_passt_student_training_sub5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -464,8 +486,8 @@ if __name__ == '__main__':
     parser.add_argument('--mixstyle_p', type=float, default=0.4)  # frequency mixstyle
     parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
     parser.add_argument('--weight_decay', type=float, default=0.001)
-    parser.add_argument('--roll', type=int, default=4000)  # roll waveform over time
-    parser.add_argument('--dir_prob', type=float, default=0.6)  # prob. to apply device impulse response augmentation # need to specify
+    parser.add_argument('--roll', type=int, default=0)  # roll waveform over time
+    parser.add_argument('--dir_prob', type=float, default=0)  # prob. to apply device impulse response augmentation # need to specify
 
     # learning rate + schedule
     # phases:
@@ -480,7 +502,7 @@ if __name__ == '__main__':
     parser.add_argument('--last_lr_value', type=float, default=0.01)  # relative to 'lr'
 
     # preprocessing
-    parser.add_argument('--resample_rate', type=int, default=32000) # default =32000
+    parser.add_argument('--resample_rate', type=int, default=44100) # default =32000
     parser.add_argument('--window_size', type=int, default=800)  # in samples
     parser.add_argument('--hop_size', type=int, default=320)  # in samples
     parser.add_argument('--n_fft', type=int, default=1024)  # length (points) of fft

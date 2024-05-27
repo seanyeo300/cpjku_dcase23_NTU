@@ -11,4 +11,4 @@ def run_script_twice(script_name):
         print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    run_script_twice('run_training_dev.py')
+    run_script_twice('run_passt_training_subsets.py')
