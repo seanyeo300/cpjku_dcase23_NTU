@@ -439,7 +439,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_sub5_441K")
+    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_sub5_441K_DIR_only")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -461,7 +461,7 @@ if __name__ == '__main__':
     # training
     parser.add_argument('--n_epochs', type=int, default=25)
     parser.add_argument('--batch_size', type=int, default=80)
-    parser.add_argument('--mixstyle_p', type=float, default=0.4)  # frequency mixstyle
+    parser.add_argument('--mixstyle_p', type=float, default=0)  # frequency mixstyle
     parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
     parser.add_argument('--weight_decay', type=float, default=0.001)
     parser.add_argument('--roll', type=int, default=4000)  # roll waveform over time

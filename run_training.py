@@ -291,11 +291,11 @@ if __name__ == '__main__':
     #  2. constant lr phase using value specified in 'lr' (for 'ramp_down_start' - 'warm_up_len' epochs)
     #  3. linearly decreasing to value 'las_lr_value' * 'lr' (for 'ramp_down_len' epochs)
     #  4. finetuning phase using a learning rate of 'last_lr_value' * 'lr' (for the rest of epochs up to 'n_epochs')
-    parser.add_argument('--lr', type=float, default=0.00001)
-    parser.add_argument('--warm_up_len', type=int, default=3)
-    parser.add_argument('--ramp_down_start', type=int, default=3)
-    parser.add_argument('--ramp_down_len', type=int, default=10)
-    parser.add_argument('--last_lr_value', type=float, default=0.01)  # relative to 'lr'
+    parser.add_argument('--lr', type=float, default=0.0009)
+    parser.add_argument('--warm_up_len', type=int, default=14)
+    parser.add_argument('--ramp_down_start', type=int, default=50)
+    parser.add_argument('--ramp_down_len', type=int, default=84)
+    parser.add_argument('--last_lr_value', type=float, default=0.005)  # relative to 'lr'
 
     # preprocessing
     parser.add_argument('--resample_rate', type=int, default=32000)
