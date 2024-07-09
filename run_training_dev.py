@@ -53,7 +53,9 @@ class PLModule(pl.LightningModule): # This Class gets the model settings and log
         self.device_groups = {'a': "real", 'b': "real", 'c': "real",
                               's1': "seen", 's2': "seen", 's3': "seen",
                               's4': "unseen", 's5': "unseen", 's6': "unseen"}
-
+        self.training_step_outputs = []
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
     def mel_forward(self, x):
         """
         @param x: a batch of raw signals (waveform)
@@ -95,8 +97,9 @@ class PLModule(pl.LightningModule): # This Class gets the model settings and log
     
     def predict_step(self, eval_batch, batch_idx, dataloader_idx=0):
         x, files = eval_batch
+        self.model.half()
         x = self.mel_forward(x)
-        # x = x.half()
+        x = x.half()
         y_hat, embed = self.forward(x)
         return files, y_hat
     
@@ -160,7 +163,7 @@ class PLModule(pl.LightningModule): # This Class gets the model settings and log
         dev_names = [d.rsplit("-", 1)[1][:-4] for d in files]
         results = {'val_loss': loss, "n_correct_pred": n_correct_pred, "n_pred": len(labels)}
 
-        # log metric per device and scene
+        '''# log metric per device and scene
         for d in self.device_ids:
             results["devloss." + d] = torch.as_tensor(0., device=self.device)
             results["devcnt." + d] = torch.as_tensor(0., device=self.device)
@@ -178,7 +181,7 @@ class PLModule(pl.LightningModule): # This Class gets the model settings and log
             results["lblloss." + self.label_ids[l]] = results["lblloss." + self.label_ids[l]] + samples_loss[i]
             results["lbln_correct." + self.label_ids[l]] = \
                 results["lbln_correct." + self.label_ids[l]] + n_correct_pred_per_sample[i]
-            results["lblcnt." + self.label_ids[l]] = results["lblcnt." + self.label_ids[l]] + 1
+            results["lblcnt." + self.label_ids[l]] = results["lblcnt." + self.label_ids[l]] + 1'''
         return results
 
     def validation_epoch_end(self, outputs):
@@ -187,7 +190,7 @@ class PLModule(pl.LightningModule): # This Class gets the model settings and log
 
         logs = {'val_acc': val_acc, 'val_loss': avg_loss}
 
-        # log metric per device and scene
+        '''# log metric per device and scene
         for d in self.device_ids:
             dev_loss = torch.stack([x["devloss." + d] for x in outputs]).sum()
             dev_cnt = torch.stack([x["devcnt." + d] for x in outputs]).sum()
@@ -212,7 +215,7 @@ class PLModule(pl.LightningModule): # This Class gets the model settings and log
             logs["vacc." + l] = lbl_corrct / lbl_cnt
             logs["vcnt." + l] = lbl_cnt
 
-        logs["macro_avg_acc"] = torch.mean(torch.stack([logs["vacc." + l] for l in self.label_ids]))
+        logs["macro_avg_acc"] = torch.mean(torch.stack([logs["vacc." + l] for l in self.label_ids]))'''
         self.log_dict(logs)
     def test_step(self, test_batch, batch_idx):
         x, files, labels, devices, cities = test_batch
@@ -222,10 +225,11 @@ class PLModule(pl.LightningModule): # This Class gets the model settings and log
         # baseline has 61148 parameters -> we can afford 16-bit precision
         # since 61148 * 16 bit ~ 122 kB
            
+        # assure fp16
+        self.model.half()
         x = self.mel_forward(x)
-
-        y_hat, embed = self.forward(x)
-        labels = labels.long()
+        x = x.half()
+        y_hat = self.model(x.cuda())
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
         # loss = samples_loss.mean()
 
@@ -360,6 +364,7 @@ def train(config):
     # create the pytorch lightening trainer by specifying the number of epochs to train, the logger,
     # on which kind of device(s) to train and possible callbacks
     trainer = pl.Trainer(max_epochs=config.n_epochs,
+                         num_sanity_val_steps=0,
                          logger=wandb_logger,
                          accelerator='gpu',
                          devices=1,
@@ -460,9 +465,9 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
-    parser.add_argument('--experiment_name', type=str, default="DCASE24_KD_Baseline_Ali2_sub5")
+    parser.add_argument('--experiment_name', type=str, default="DCASE24_KD_Ensemble2Base_Ali2_sub100")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
-    parser.add_argument('--subset', type=int, default=5)
+    parser.add_argument('--subset', type=int, default=100)
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
@@ -497,15 +502,15 @@ if __name__ == '__main__':
     #  2. constant lr phase using value specified in 'lr' (for 'ramp_down_start' - 'warm_up_len' epochs)
     #  3. linearly decreasing to value 'las_lr_value' * 'lr' (for 'ramp_down_len' epochs)
     #  4. finetuning phase using a learning rate of 'last_lr_value' * 'lr' (for the rest of epochs up to 'n_epochs')
-    parser.add_argument('--lr', type=float, default=0.005) # try 0.001, was 0.005
-    parser.add_argument('--warmup_steps', type=int, default=0)
+    parser.add_argument('--lr', type=float, default=0.01) # try 0.001, was 0.005
+    parser.add_argument('--warmup_steps', type=int, default=100)
     # parser.add_argument('--warm_up_len', type=int, default=14)
     # parser.add_argument('--ramp_down_start', type=int, default=50)
     # parser.add_argument('--ramp_down_len', type=int, default=84)
     # parser.add_argument('--last_lr_value', type=float, default=0.005)  # relative to 'lr'
 
     # preprocessing
-    parser.add_argument('--resample_rate', type=int, default=44100)
+    parser.add_argument('--resample_rate', type=int, default=32000)
     parser.add_argument('--window_size', type=int, default=3072)  # in samples (corresponds to 96 ms)
     parser.add_argument('--hop_size', type=int, default=500)  # in samples (corresponds to ~16 ms)
     parser.add_argument('--n_fft', type=int, default=4096)  # length (points) of fft, e.g. 4096 point FFT

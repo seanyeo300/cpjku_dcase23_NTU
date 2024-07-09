@@ -24,7 +24,8 @@ dataset_config = {
     "train_files_csv": os.path.join(dataset_dir, "evaluation_setup", "fold1_train.csv"),
     "test_files_csv": os.path.join(dataset_dir, "evaluation_setup", "fold1_evaluate.csv"),
     "dirs_path": os.path.join("datasets", "dirs"),
-    "logits_file": os.path.join("resources", "ensemble_logits.pt")
+    # "logits_file": os.path.join("resources", "ensemble_logits.pt")
+    "logits_file": os.path.join("predictions","ensemble", "sub100_ensemble_12_logits.pt")
 }
 
 

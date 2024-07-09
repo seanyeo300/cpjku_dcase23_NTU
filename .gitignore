@@ -6,3 +6,6 @@ resources/*.npy
 wandb
 datasets/cpath
 DCASE23_Task1
+*.ckpt
+*.json
+*model_state_dict.pt

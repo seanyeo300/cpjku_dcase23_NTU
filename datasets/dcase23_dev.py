@@ -12,7 +12,7 @@ from torch.hub import download_url_to_file
 import torchaudio
 
 dataset_dir = "D:\Sean\DCASE\datasets\Extract_to_Folder\TAU-urban-acoustic-scenes-2022-mobile-development\\"
-# wave_dir =  "D:\Sean\DCASE\datasets\Extract_to_Folder\TAU-urban-acoustic-scenes-2022-mobile-development\wave_np"
+
 assert dataset_dir is not None, "Specify 'TAU Urban Acoustic Scenes 2022 Mobile dataset' location in variable " \
                                 "'dataset_dir'. The dataset can be downloaded from this URL:" \
                                 " https://zenodo.org/record/6337421"
@@ -34,9 +34,9 @@ dataset_config = {
     "split_url": "https://github.com/CPJKU/dcase2024_task1_baseline/releases/download/files/",
     "test_split_csv": "test.csv",
     "eval_dir": os.path.join(dataset_dir), 
-    "eval_meta_csv": os.path.join(dataset_dir, "split100.csv"), # to get the full prediction list with index intact
+    "eval_meta_csv": os.path.join(dataset_dir, "meta.csv"), # to get the full prediction list with index intact
     "dirs_path": os.path.join("datasets", "dirs"),
-    "logits_file": os.path.join("predictions", "o661pbve", "logits.pt")
+    "logits_file": os.path.join("predictions","ensemble", "sub100_ensemble_12_logits.pt")
     #"logits_file": os.path.join("predictions","1ea864zz", "logits.pt") #specifies where the logit and predictions are stored. Still need to provide script with ckpt_id
     # "eval_dir": os.path.join(dataset_dir, "TAU-urban-acoustic-scenes-2024-mobile-evaluation"), 
     # "eval_meta_csv": os.path.join(dataset_dir,  "TAU-urban-acoustic-scenes-2024-mobile-evaluation", "meta.csv")
