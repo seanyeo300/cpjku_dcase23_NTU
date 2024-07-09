@@ -8,7 +8,6 @@ import argparse
 import os
 
 from torch.autograd import Variable
-from helpers.utils import mixstyle
 from helpers.lr_schedule import exp_warmup_linear_down
 from helpers.init import worker_init_fn
 from models.passt import get_model
@@ -76,8 +75,8 @@ class PLModule(pl.LightningModule):
         y_hat, embed = self.forward(x)
 
         return files, y_hat
-    def mixup_criterion(self,criterion, pred, y_a, y_b, lam):
-            return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+    # def mixup_criterion(self,criterion, pred, y_a, y_b, lam):
+    #         return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
         
     def training_step(self, batch, batch_idx):
         criterion = torch.nn.CrossEntropyLoss()
@@ -91,16 +90,16 @@ class PLModule(pl.LightningModule):
             
         y_hat, embed = self.forward(x)
         labels = labels.long()
-        inputs, targets_a, targets_b, lam = mixup_data(x, labels,
-                                                       self.config.mixup_alpha, use_cuda=True)
-        inputs, targets_a, targets_b = map(Variable, (inputs,
-                                                      targets_a, targets_b))
+        # inputs, targets_a, targets_b, lam = mixup_data(x, labels,
+                                                    #    self.config.mixup_alpha, use_cuda=True)
+        # inputs, targets_a, targets_b = map(Variable, (inputs,
+                                                    #   targets_a, targets_b))
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
 
-        loss = self.mixup_criterion(criterion,y_hat, targets_a, targets_b, lam)
+        # loss = self.mixup_criterion(criterion,y_hat, targets_a, targets_b, lam)
 
-        # loss = samples_loss.mean()
-        # samples_loss = samples_loss.detach()
+        loss = samples_loss.mean()
+        samples_loss = samples_loss.detach()
 
         _, preds = torch.max(y_hat, dim=1)
         n_correct_pred = (preds == labels).sum()
@@ -396,7 +395,8 @@ def evaluate(config):
     ############# h5 edit here ##############
     # Open h5 file once
     hf_in = open_h5('h5py_audio_wav')
-    eval_hf = open_h5('h5py_audio_eval_wav')
+    eval_hf = open_h5('h5py_audio_wav_copy') # only when obtaining pre-computed train
+    # eval_hf = open_h5('h5py_audio_eval_wav')
     # load lightning module from checkpoint
     pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
     trainer = pl.Trainer(logger=False,
@@ -434,7 +434,7 @@ def evaluate(config):
 
     ############# h5 edit here ##############
     # generate predictions on evaluation set
-    eval_dl = DataLoader(dataset=ntu_get_eval_set(eval_hf),
+    eval_dl = DataLoader(dataset=ntu_get_eval_set(hf_in),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
@@ -466,14 +466,14 @@ def evaluate(config):
         
     ############# h5 edit here ##############
     close_h5(hf_in)
-    close_h5(eval_hf)
+    # close_h5(eval_hf)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
     # general
     parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_sub5_441K_FMS_DIR_mixup_h5")
+    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_sub5_441K_FMS_DIR_h5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
