@@ -79,7 +79,7 @@ class PLModule(pl.LightningModule):
     def mixup_criterion(self,criterion, pred, y_a, y_b, lam):
             return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
         
-    def training_step(self, batch, batch_idx, mixup_criterion):
+    def training_step(self, batch, batch_idx):
         criterion = torch.nn.CrossEntropyLoss()
         x, files, labels, devices, cities, teacher_logits = batch
 
@@ -97,7 +97,7 @@ class PLModule(pl.LightningModule):
                                                       targets_a, targets_b))
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
 
-        loss = mixup_criterion(criterion,y_hat, targets_a, targets_b, lam)
+        loss = self.mixup_criterion(criterion,y_hat, targets_a, targets_b, lam)
 
         # loss = samples_loss.mean()
         # samples_loss = samples_loss.detach()
