@@ -473,7 +473,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_sub100_441K_FMS_DIR")
+    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_sub5_441K_FMS_DIR_mixup_h5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -484,7 +484,7 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=50)
+    parser.add_argument('--subset', type=int, default=5)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
@@ -500,7 +500,7 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', type=float, default=0.001)
     parser.add_argument('--roll', type=int, default=4000)  # roll waveform over time
     parser.add_argument('--dir_prob', type=float, default=0.6)  # prob. to apply device impulse response augmentation # need to specify
-
+    parser.add_argument('--mixup_alpha', type=float, default=1.0)
     # learning rate + schedule
     # phases:
     #  1. exponentially increasing warmup phase (for 'warm_up_len' epochs)
