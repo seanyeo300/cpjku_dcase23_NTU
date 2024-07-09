@@ -372,7 +372,12 @@ class BasicDCASE24EvalDataseth5(TorchDataset):
 
     def __getitem__(self, index):
         mel_sig_ds = self.files[index]
-        sig = torch.from_numpy(self.hf_in.get(mel_sig_ds)[()])          
+        print(mel_sig_ds)
+        # sig = torch.from_numpy(self.hf_in.get(mel_sig_ds)[()])          
+        data = self.hf_in.get(mel_sig_ds)
+        if data is None:
+            raise ValueError(f"Dataset {mel_sig_ds} not found in HDF5 file.")
+        sig = torch.from_numpy(data[()])
         return sig, self.files[index]
 
     def __len__(self):
