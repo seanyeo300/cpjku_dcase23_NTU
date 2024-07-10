@@ -371,8 +371,8 @@ class BasicDCASE24EvalDataseth5(TorchDataset):
         #self.eval_dir = eval_dir
 
     def __getitem__(self, index):
-        mel_sig_ds = self.files[index]
-        print(mel_sig_ds)
+        mel_sig_ds = self.files[index][5:-4]
+        # print(mel_sig_ds)
         # sig = torch.from_numpy(self.hf_in.get(mel_sig_ds)[()])          
         data = self.hf_in.get(mel_sig_ds)
         if data is None:
