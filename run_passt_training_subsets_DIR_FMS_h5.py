@@ -500,7 +500,7 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', type=float, default=0.001)
     parser.add_argument('--roll', type=int, default=4000)  # roll waveform over time
     parser.add_argument('--dir_prob', type=float, default=0.6)  # prob. to apply device impulse response augmentation # need to specify
-    parser.add_argument('--mixup_alpha', type=float, default=1.0)
+    # parser.add_argument('--mixup_alpha', type=float, default=1.0)
     # learning rate + schedule
     # phases:
     #  1. exponentially increasing warmup phase (for 'warm_up_len' epochs)
