@@ -466,7 +466,7 @@ def evaluate(config):
         
     ############# h5 edit here ##############
     close_h5(hf_in)
-    # close_h5(eval_hf)
+    close_h5(eval_hf)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
