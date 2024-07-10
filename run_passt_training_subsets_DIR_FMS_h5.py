@@ -395,7 +395,7 @@ def evaluate(config):
     ############# h5 edit here ##############
     # Open h5 file once
     hf_in = open_h5('h5py_audio_wav')
-    eval_hf = open_h5('h5py_audio_wav_copy') # only when obtaining pre-computed train
+    eval_hf = open_h5('h5py_audio_wav2') # only when obtaining pre-computed train
     # eval_hf = open_h5('h5py_audio_eval_wav')
     # load lightning module from checkpoint
     pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
@@ -434,7 +434,7 @@ def evaluate(config):
 
     ############# h5 edit here ##############
     # generate predictions on evaluation set
-    eval_dl = DataLoader(dataset=ntu_get_eval_set(hf_in),
+    eval_dl = DataLoader(dataset=ntu_get_eval_set(eval_hf),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
