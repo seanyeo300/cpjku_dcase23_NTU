@@ -75,6 +75,14 @@ class PLModule(pl.LightningModule):
         y_hat, embed = self.forward(x)
 
         return files, y_hat
+    def cross_entropy(self, logits, onehot_labels, ls=False):
+        if ls:
+            onehot_labels = 0.9 * onehot_labels + 0.1 / logits.size(-1)
+            onehot_labels = onehot_labels.double()
+        return (-1.0 * torch.mean(torch.sum(onehot_labels * F.log_softmax(logits, -1), -1), 0))
+    def neg_entropy(self, logits):
+        probs = F.softmax(logits, -1)
+        return torch.mean(torch.sum(probs * F.log_softmax(logits, -1), -1), 0)
     def training_step(self, batch, batch_idx):
         x, files, labels, devices, cities, teacher_logits = batch
 
@@ -87,28 +95,23 @@ class PLModule(pl.LightningModule):
 
         y_hat, embed = self.forward(x)
         labels = labels.long()
-        samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
-        softmax_y = F.softmax(y_hat,-1)
-        entropy_loss = F.cross_entropy(y_hat,softmax_y, reduction= "none")
-        print(f"entropy loss before .mean: {entropy_loss}")
-        entropy_loss = entropy_loss.mean()
-        print(f"entropy loss after .mean: {entropy_loss}")
-        dt = F.softmax(y_hat, -1) - F.softmax(teacher_logits, -1)
-        y_d = y_hat + dt
-        loss_cls = F.cross_entropy(y_d,labels, reduction="none")
-        print(f"loss cls before .mean: {loss_cls}")
-        loss_cls = F.cross_entropy(y_d,labels, reduction="none").mean()
-        print(f"loss cls after .mean: {loss_cls}")
-        # print(labels)
-        one_hot_labels = F.one_hot(labels, num_classes=10)
-        multi_warm_lb = F.softmax(teacher_logits/2, -1) > 1.0/teacher_logits.size(-1)           # eqn(4)* see lab notebook
-        multi_warm_lb = torch.clamp(multi_warm_lb.double() + one_hot_labels, 0, 1)              # eqn(5) .double sets data type to float 64 instead of int 0,1
-        multi_warm_lb = multi_warm_lb/torch.sum(multi_warm_lb, -1, keepdim = True)                # eqn(6)
-        R_attention = F.cross_entropy(y_hat, multi_warm_lb.detach(), reduction = "none")
-        print(f"R_attention before .mean: {R_attention}")
-        R_attention = F.cross_entropy(y_hat, multi_warm_lb.detach(), reduction = "none").mean()
-        print(f"R_attention after .mean: {R_attention}")# eqn(10)
-        loss = loss_cls + R_attention - entropy_loss
+        ############ Author's Version of FocusNet Loss #############
+        # Loss CLS
+        diff = F.softmax(y_hat,-1)- F.softmax(teacher_logits,-1)
+        onehot_labels = F.one_hot(labels,y_hat.size(-1))
+        loss_cls = self.cross_entropy(y_hat+diff,onehot_labels,True)
+        
+        # R_Entropy
+        R_negtropy = self.neg_entropy(y_hat)
+        
+        #R_Attn
+        mwl = F.softmax(teacher_logits/2,-1)>1.0/teacher_logits.size(-1)
+        mwl = torch.clamp(mwl.double()+onehot_labels,0,1)
+        mwl=mwl/torch.sum(mwl,-1,True)
+        R_attn = self.cross_entropy(y_hat,mwl.detach(),False)
+        
+        # loss
+        loss = loss_cls+R_attn + R_negtropy
         loss = loss.detach()
         # loss = loss.mean() # currently, mean after adding
         # loss = samples_loss.mean()
@@ -363,6 +366,7 @@ def train(config):
     # on which kind of device(s) to train and possible callbacks
     trainer = pl.Trainer(max_epochs=config.n_epochs,
                          logger=wandb_logger,
+                         num_sanity_val_steps=0,
                          accelerator='gpu',
                          devices=1,
                          callbacks=[lr_monitor, checkpoint_callback])
@@ -398,6 +402,7 @@ def evaluate(config):
     trainer = pl.Trainer(logger=False,
                          accelerator='gpu',
                          devices=1,
+                         num_sanity_val_steps=0,
                          precision=config.precision)
 
     # evaluate lightning module on development-test split
