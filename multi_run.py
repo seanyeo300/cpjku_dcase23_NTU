@@ -10,5 +10,5 @@ def run_multiple_scripts(script_names):
 
 if __name__ == "__main__":
     # Example: Replace these with your actual script names
-    scripts_to_run = ['run_passt_training_subsets_DIR_FMS.py','run_passt_training_subsets_DIR_FMS.py', 'run_passt_training_subsets_FMS.py', 'run_passt_training_subsets_FMS.py', 'run_passt_training_subsets_DIR_only.py','run_passt_training_subsets_DIR_only.py']
+    scripts_to_run = ['run_passt_training_subsets_focus_h5.py','run_passt_training_subsets_focus_h5.py', 'run_passt_training_subsets_focus_h5.py']
     run_multiple_scripts(scripts_to_run)
