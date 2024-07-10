@@ -14,3 +14,4 @@ h5py_mic_wav_1
 *.ckpt
 *.json
 *model_state_dict.pt
+h5py_audio_wav2
