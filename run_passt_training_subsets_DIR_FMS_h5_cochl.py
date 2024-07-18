@@ -80,7 +80,8 @@ class PLModule(pl.LightningModule):
         
     def training_step(self, batch, batch_idx):
         criterion = torch.nn.CrossEntropyLoss()
-        x, files, labels, devices, cities, teacher_logits = batch
+        # x, files, labels, devices, cities, teacher_logits = batch
+        x, files, labels, devices, cities = batch
 
         if self.mel:
             x = self.mel_forward(x)
@@ -105,18 +106,18 @@ class PLModule(pl.LightningModule):
         n_correct_pred = (preds == labels).sum()
         results = {"loss": loss, "n_correct_pred": n_correct_pred, "n_pred": len(labels)}
 
-        if self.calc_device_info:
-            devices = [d.rsplit("-", 1)[1][:-4] for d in files]
+        # if self.calc_device_info:
+        #     devices = [d.rsplit("-", 1)[1][:-4] for d in files]
 
-            for d in self.device_ids:
-                results["devloss." + d] = torch.as_tensor(0., device=self.device)
-                results["devcnt." + d] = torch.as_tensor(0., device=self.device)
+        #     for d in self.device_ids:
+        #         results["devloss." + d] = torch.as_tensor(0., device=self.device)
+        #         results["devcnt." + d] = torch.as_tensor(0., device=self.device)
 
-            for i, d in enumerate(devices):
-                results["devloss." + d] = results["devloss." + d] + samples_loss[i]
-                results["devcnt." + d] = results["devcnt." + d] + 1.
+        #     for i, d in enumerate(devices):
+        #         results["devloss." + d] = results["devloss." + d] + samples_loss[i]
+        #         results["devcnt." + d] = results["devcnt." + d] + 1.
 
-        return results
+        # return results
 
     def training_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
@@ -124,12 +125,12 @@ class PLModule(pl.LightningModule):
         train_acc = sum([x['n_correct_pred'] for x in outputs]) * 1.0 / sum(x['n_pred'] for x in outputs)
         logs = {'train.loss': avg_loss, 'train_acc': train_acc}
 
-        if self.calc_device_info:
-            for d in self.device_ids:
-                dev_loss = torch.stack([x["devloss." + d] for x in outputs]).sum()
-                dev_cnt = torch.stack([x["devcnt." + d] for x in outputs]).sum()
-                logs["tloss." + d] = dev_loss / dev_cnt
-                logs["tcnt." + d] = dev_cnt
+        # if self.calc_device_info:
+        #     for d in self.device_ids:
+        #         dev_loss = torch.stack([x["devloss." + d] for x in outputs]).sum()
+        #         dev_cnt = torch.stack([x["devcnt." + d] for x in outputs]).sum()
+        #         logs["tloss." + d] = dev_loss / dev_cnt
+        #         logs["tcnt." + d] = dev_cnt
 
         self.log_dict(logs)
 
@@ -316,7 +317,7 @@ def train(config):
 
     ######### h5 edit here ###############
     # get pointer to h5 file containing audio samples
-    hf_in = open_h5('h5py_audio_wav')
+    hf_in = open_h5('h5py_cochl_wav')
     hmic_in = open_h5('h5py_mic_wav_1')
 
     # get_training set already as logic to handle dir_prob=0
@@ -359,7 +360,7 @@ def train(config):
                          callbacks=[lr_monitor, checkpoint_callback])
     # start training and validation for the specified number of epochs
     trainer.fit(pl_module, train_dl, test_dl)
-    trainer.test(ckpt_path='best', dataloaders=test_dl)
+    # trainer.test(ckpt_path='best', dataloaders=test_dl) # will need to clone get_test_set if we want to test, currently pointing to the same csv
     ############ h5 edit end #################
     # close file pointer to h5 file 
     close_h5(hf_in)
@@ -394,7 +395,7 @@ def evaluate(config):
     
     ############# h5 edit here ##############
     # Open h5 file once
-    hf_in = open_h5('h5py_audio_wav')
+    hf_in = open_h5('h5py_cochl_wav')
     eval_hf = open_h5('h5py_audio_wav2') # only when obtaining pre-computed train
     # eval_hf = open_h5('h5py_audio_eval_wav')
     # load lightning module from checkpoint
@@ -472,8 +473,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
     # general
-    parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_sub5_441K_FMS_DIR_h5")
+    parser.add_argument('--project_name', type=str, default="NTU24_ASC")
+    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_cochl_441K_FMS_DIR_h5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -484,10 +485,10 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=5)
+    parser.add_argument('--subset', default="cochl")
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
-    parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
+    parser.add_argument('--n_classes', type=int, default=13)  # classification model with 'n_classes' output neurons
     parser.add_argument('--input_fdim', type=int, default=128)
     parser.add_argument('--s_patchout_t', type=int, default=0)
     parser.add_argument('--s_patchout_f', type=int, default=6)
