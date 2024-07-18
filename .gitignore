@@ -6,6 +6,7 @@ resources/*.npy
 wandb
 datasets/cpath
 DCASE23_Task1
+h5py_cochl_wav
 h5py_audio_wav
 h5py_mel_256bins
 h5py_audio_eval_wav
