@@ -116,8 +116,8 @@ class PLModule(pl.LightningModule):
         #     for i, d in enumerate(devices):
         #         results["devloss." + d] = results["devloss." + d] + samples_loss[i]
         #         results["devcnt." + d] = results["devcnt." + d] + 1.
-
-        # return results
+        print(f"Training Loss = {loss}")
+        return results
 
     def training_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
