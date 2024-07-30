@@ -6,6 +6,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import LearningRateMonitor
 import argparse
 import os
+import torch.nn as nn
 
 from torch.autograd import Variable
 from helpers.lr_schedule import exp_warmup_linear_down
@@ -19,7 +20,13 @@ from helpers.utils import mixstyle, mixup_data
 import json
 
 torch.set_float32_matmul_precision("high")
-
+def load_and_modify_checkpoint(pl_module,num_classes=10):
+        # Modify the final layer
+        pl_module.model.head = nn.Sequential(
+            nn.LayerNorm((768,), eps=1e-05, elementwise_affine=True),
+            nn.Linear(768, num_classes)
+        )
+        return pl_module
 class PLModule(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
@@ -333,8 +340,16 @@ def train(config):
                          batch_size=config.batch_size)
 
     # create pytorch lightening module
-    pl_module = PLModule(config)
-
+    # pl_module = PLModule(config) # this initializes the model pre-trained on audioset
+    ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
+    assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
+    #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
+    for file in os.listdir(ckpt_dir):
+        if "epoch" in file:
+            ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
+            print(f"found ckpt file: {file}")
+    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    pl_module = load_and_modify_checkpoint(pl_module)
     # get model complexity from nessi and log results to wandb
     # ATTENTION: this is before layer fusion, therefore the MACs and Params slightly deviate from what is
     # reported in the challenge submission
@@ -472,8 +487,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
     # general
-    parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_sub5_441K_FMS_DIR_h5")
+    parser.add_argument('--project_name', type=str, default="NTU24_ASC")
+    parser.add_argument('--experiment_name', type=str, default="NTU_passt_Seq_AS_Cochl_sub100_441K_FMS_DIR_h5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -484,10 +499,10 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=5)
+    parser.add_argument('--subset', type=int, default=100)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
-    parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
+    parser.add_argument('--n_classes', type=int, default=13)  # classification model with 'n_classes' output neurons
     parser.add_argument('--input_fdim', type=int, default=128)
     parser.add_argument('--s_patchout_t', type=int, default=0)
     parser.add_argument('--s_patchout_f', type=int, default=6)
