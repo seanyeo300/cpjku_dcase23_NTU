@@ -17,3 +17,5 @@ h5py_mic_wav_1
 *.json
 *model_state_dict.pt
 h5py_audio_wav2
+BEATs_iter3_plus_AS2M.pt
+Tokenizer_iter3_plus_AS2M.pt
