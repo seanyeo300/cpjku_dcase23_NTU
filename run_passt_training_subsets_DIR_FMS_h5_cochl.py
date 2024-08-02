@@ -189,7 +189,7 @@ class PLModule(pl.LightningModule):
 
             for d in set(self.device_groups.values()):
                 logs["acc." + d] = logs["acc." + d] / logs["count." + d]
-                logs["lloss.False" + d] = logs["lloss." + d] / logs["count." + d]'''
+                logs["lloss.False" + d] = logs["lloss." + d] / logs["count." + d]'''    
 
         self.log_dict(logs)
 
