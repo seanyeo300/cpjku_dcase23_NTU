@@ -19,3 +19,5 @@ h5py_mic_wav_1
 h5py_audio_wav2
 BEATs_iter3_plus_AS2M.pt
 Tokenizer_iter3_plus_AS2M.pt
+h5py_cochl_train_mel_10s
+h5py_cochl_val_mel_10s
