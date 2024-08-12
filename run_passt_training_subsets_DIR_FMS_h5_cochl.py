@@ -1,5 +1,6 @@
 import torch
 from torch.nn import functional as F
+import torch.nn as nn
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
@@ -19,7 +20,13 @@ from helpers.utils import mixstyle, mixup_data
 import json
 
 torch.set_float32_matmul_precision("high")
-
+def load_and_modify_checkpoint(pl_module, num_classes=10):
+    # Modify the final layer
+    pl_module.model.head = nn.Sequential(
+        nn.LayerNorm((768,), eps=1e-05, elementwise_affine=True),
+        nn.Linear(768, num_classes)
+    )
+    return pl_module
 class PLModule(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
@@ -224,14 +231,14 @@ class PLModule(pl.LightningModule):
                    "n_pred": torch.as_tensor(len(labels), device=self.device)}
 
         # log metric per device and scene
-        for d in self.device_ids:
-            results["devloss." + d] = torch.as_tensor(0., device=self.device)
-            results["devcnt." + d] = torch.as_tensor(0., device=self.device)
-            results["devn_correct." + d] = torch.as_tensor(0., device=self.device)
-        for i, d in enumerate(dev_names):
-            results["devloss." + d] = results["devloss." + d] + samples_loss[i]
-            results["devn_correct." + d] = results["devn_correct." + d] + n_correct_per_sample[i]
-            results["devcnt." + d] = results["devcnt." + d] + 1
+        # for d in self.device_ids:
+        #     results["devloss." + d] = torch.as_tensor(0., device=self.device)
+        #     results["devcnt." + d] = torch.as_tensor(0., device=self.device)
+        #     results["devn_correct." + d] = torch.as_tensor(0., device=self.device)
+        # for i, d in enumerate(dev_names):
+        #     results["devloss." + d] = results["devloss." + d] + samples_loss[i]
+        #     results["devn_correct." + d] = results["devn_correct." + d] + n_correct_per_sample[i]
+        #     results["devcnt." + d] = results["devcnt." + d] + 1
 
         for l in self.label_ids:
             results["lblloss." + l] = torch.as_tensor(0., device=self.device)
@@ -259,21 +266,21 @@ class PLModule(pl.LightningModule):
         logs = {'acc': acc, 'loss': avg_loss}
 
         # log metric per device and scene
-        for d in self.device_ids:
-            dev_loss = outputs["devloss." + d].sum()
-            dev_cnt = outputs["devcnt." + d].sum()
-            dev_corrct = outputs["devn_correct." + d].sum()
-            logs["loss." + d] = dev_loss / dev_cnt
-            logs["acc." + d] = dev_corrct / dev_cnt
-            logs["cnt." + d] = dev_cnt
-            # device groups
-            logs["acc." + self.device_groups[d]] = logs.get("acc." + self.device_groups[d], 0.) + dev_corrct
-            logs["count." + self.device_groups[d]] = logs.get("count." + self.device_groups[d], 0.) + dev_cnt
-            logs["lloss." + self.device_groups[d]] = logs.get("lloss." + self.device_groups[d], 0.) + dev_loss
+        # for d in self.device_ids:
+        #     dev_loss = outputs["devloss." + d].sum()
+        #     dev_cnt = outputs["devcnt." + d].sum()
+        #     dev_corrct = outputs["devn_correct." + d].sum()
+        #     logs["loss." + d] = dev_loss / dev_cnt
+        #     logs["acc." + d] = dev_corrct / dev_cnt
+        #     logs["cnt." + d] = dev_cnt
+        #     # device groups
+        #     logs["acc." + self.device_groups[d]] = logs.get("acc." + self.device_groups[d], 0.) + dev_corrct
+        #     logs["count." + self.device_groups[d]] = logs.get("count." + self.device_groups[d], 0.) + dev_cnt
+        #     logs["lloss." + self.device_groups[d]] = logs.get("lloss." + self.device_groups[d], 0.) + dev_loss
 
-        for d in set(self.device_groups.values()):
-            logs["acc." + d] = logs["acc." + d] / logs["count." + d]
-            logs["lloss." + d] = logs["lloss." + d] / logs["count." + d]
+        # for d in set(self.device_groups.values()):
+        #     logs["acc." + d] = logs["acc." + d] / logs["count." + d]
+        #     logs["lloss." + d] = logs["lloss." + d] / logs["count." + d]
 
         for l in self.label_ids:
             lbl_loss = outputs["lblloss." + l].sum()
@@ -332,9 +339,16 @@ def train(config):
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
-
+# Create PyTorch Lightning module
+    ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
+    assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
+    for file in os.listdir(ckpt_dir):
+        if "epoch" in file:
+            ckpt_file = os.path.join(ckpt_dir, file)  # Choosing the best model checkpoint
+            print(f"found ckpt file: {file}")
     # create pytorch lightening module
-    pl_module = PLModule(config)
+    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    pl_module = load_and_modify_checkpoint(pl_module)
 
     # get model complexity from nessi and log results to wandb
     # ATTENTION: this is before layer fusion, therefore the MACs and Params slightly deviate from what is
@@ -474,7 +488,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_cochl_441K_FMS_DIR_h5")
+    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training_cochl_test_h5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -494,7 +508,7 @@ if __name__ == '__main__':
     parser.add_argument('--s_patchout_f', type=int, default=6)
 
     # training
-    parser.add_argument('--n_epochs', type=int, default=25)
+    parser.add_argument('--n_epochs', type=int, default=1)
     parser.add_argument('--batch_size', type=int, default=80)
     parser.add_argument('--mixstyle_p', type=float, default=0.4)  # frequency mixstyle
     parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
