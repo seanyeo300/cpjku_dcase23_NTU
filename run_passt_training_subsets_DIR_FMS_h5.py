@@ -340,16 +340,16 @@ def train(config):
                          batch_size=config.batch_size)
 
     # create pytorch lightening module
-    # pl_module = PLModule(config) # this initializes the model pre-trained on audioset
-    ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
-    assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
-    #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
-    for file in os.listdir(ckpt_dir):
-        if "epoch" in file:
-            ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
-            print(f"found ckpt file: {file}")
-    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
-    pl_module = load_and_modify_checkpoint(pl_module)
+    pl_module = PLModule(config) # this initializes the model pre-trained on audioset
+    # ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
+    # assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
+    # #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
+    # for file in os.listdir(ckpt_dir):
+    #     if "epoch" in file:
+    #         ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
+    #         print(f"found ckpt file: {file}")
+    # pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    # pl_module = load_and_modify_checkpoint(pl_module)
     # get model complexity from nessi and log results to wandb
     # ATTENTION: this is before layer fusion, therefore the MACs and Params slightly deviate from what is
     # reported in the challenge submission
@@ -502,7 +502,7 @@ if __name__ == '__main__':
     parser.add_argument('--subset', type=int, default=25)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
-    parser.add_argument('--n_classes', type=int, default=13)  # classification model with 'n_classes' output neurons
+    parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
     parser.add_argument('--input_fdim', type=int, default=128)
     parser.add_argument('--s_patchout_t', type=int, default=0)
     parser.add_argument('--s_patchout_f', type=int, default=6)
