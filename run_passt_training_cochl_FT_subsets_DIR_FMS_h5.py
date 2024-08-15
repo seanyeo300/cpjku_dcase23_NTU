@@ -26,6 +26,8 @@ def load_and_modify_checkpoint(pl_module,num_classes=10):
             nn.LayerNorm((768,), eps=1e-05, elementwise_affine=True),
             nn.Linear(768, num_classes)
         )
+        pl_module.model.head_dist = nn.Linear(768, num_classes)
+        
         return pl_module
 class PLModule(pl.LightningModule):
     def __init__(self, config):
@@ -349,7 +351,7 @@ def train(config):
             ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
             print(f"found ckpt file: {file}")
     pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
-    pl_module = load_and_modify_checkpoint(pl_module)
+    pl_module = load_and_modify_checkpoint(pl_module, num_classes=10)
     # get model complexity from nessi and log results to wandb
     # ATTENTION: this is before layer fusion, therefore the MACs and Params slightly deviate from what is
     # reported in the challenge submission
@@ -488,7 +490,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_cochl_tau_T_SKD2Tau")
+    parser.add_argument('--experiment_name', type=str, default="NTU_passt_cochl_tau_1s_sub5_FMS_DIR")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -499,7 +501,7 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=10)
+    parser.add_argument('--subset', type=int, default=5)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=13)  # classification model with 'n_classes' output neurons
