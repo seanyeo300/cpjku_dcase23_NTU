@@ -488,7 +488,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_Seq_AS_Cochl_sub25_441K_FMS_DIR_h5")
+    parser.add_argument('--experiment_name', type=str, default="NTU_passt_Seq_AS_Cochl_sub10_441K_FMS_DIR_test_h5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -499,7 +499,7 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=25)
+    parser.add_argument('--subset', type=int, default=10)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
