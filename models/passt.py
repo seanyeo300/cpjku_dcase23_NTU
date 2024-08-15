@@ -560,7 +560,7 @@ class PaSST(nn.Module):
             features = (x[0] + x[1]) / 2
             if first_RUN: print("forward_features", features.size())
             x = self.head(features)
-            if first_RUN: print("head", x.size())
+            if first_RUN: print("head_dist", x.size())
             first_RUN = False
             return x, features
         else:
