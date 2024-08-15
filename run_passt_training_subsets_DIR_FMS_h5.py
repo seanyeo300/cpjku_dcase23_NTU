@@ -405,18 +405,18 @@ def evaluate(config):
     os.makedirs(out_dir, exist_ok=True)
 
     # load lightning module from checkpoint
-    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    # pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
     
     ############# h5 edit here ##############
     # Open h5 file once
     hf_in = open_h5('h5py_audio_wav')
-    eval_hf = open_h5('h5py_audio_wav2') # only when obtaining pre-computed train
+    # eval_hf = open_h5('h5py_audio_wav2') # only when obtaining pre-computed train
     # eval_hf = open_h5('h5py_audio_eval_wav')
     # load lightning module from checkpoint
     pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
     trainer = pl.Trainer(logger=False,
                          accelerator='gpu',
-                         devices=[0],
+                         devices=0,
                          precision=config.precision)
     ############# h5 edit here ##############
     # evaluate lightning module on development-test split
@@ -449,7 +449,7 @@ def evaluate(config):
 
     ############# h5 edit here ##############
     # generate predictions on evaluation set
-    eval_dl = DataLoader(dataset=ntu_get_eval_set(eval_hf),
+    eval_dl = DataLoader(dataset=ntu_get_eval_set(hf_in),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
@@ -481,7 +481,7 @@ def evaluate(config):
         
     ############# h5 edit here ##############
     close_h5(hf_in)
-    close_h5(eval_hf)
+    # close_h5(eval_hf)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
