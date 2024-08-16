@@ -20,13 +20,13 @@ from helpers.utils import mixstyle, mixup_data
 import json
 
 torch.set_float32_matmul_precision("high")
-def load_and_modify_checkpoint(pl_module,num_classes=10):
-        # Modify the final layer
-        pl_module.model.head = nn.Sequential(
-            nn.LayerNorm((768,), eps=1e-05, elementwise_affine=True),
-            nn.Linear(768, num_classes)
-        )
-        return pl_module
+# def load_and_modify_checkpoint(pl_module,num_classes=10):
+#         # Modify the final layer
+#         pl_module.model.head = nn.Sequential(
+#             nn.LayerNorm((768,), eps=1e-05, elementwise_affine=True),
+#             nn.Linear(768, num_classes)
+#         )
+#         return pl_module
 class PLModule(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
@@ -416,7 +416,7 @@ def evaluate(config):
     pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
     trainer = pl.Trainer(logger=False,
                          accelerator='gpu',
-                         devices=0,
+                         devices=1,
                          precision=config.precision)
     ############# h5 edit here ##############
     # evaluate lightning module on development-test split
@@ -499,7 +499,7 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=10)
+    parser.add_argument('--subset', type=int, default=5)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
