@@ -12,8 +12,8 @@ from scipy.signal import convolve
 import pathlib
 import h5py
 
-dataset_dir = r"D:\Sean\DCASE\datasets\Extract_to_Folder\TAU-urban-acoustic-scenes-2022-mobile-development" # Alibaba
-# dataset_dir = r"F:\DCASE\2024\Datasets\TAU-urban-acoustic-scenes-2022-mobile-development" # DSP
+# dataset_dir = r"D:\Sean\DCASE\datasets\Extract_to_Folder\TAU-urban-acoustic-scenes-2022-mobile-development" # Alibaba
+dataset_dir = r"F:\DCASE\2024\Datasets\TAU-urban-acoustic-scenes-2022-mobile-development" # DSP
 assert dataset_dir is not None, "Specify 'TAU Urban Acoustic Scenes 2022 Mobile dataset' location in variable " \
                                 "'dataset_dir'. The dataset can be downloaded from this URL:" \
                                 " https://zenodo.org/record/6337421"
@@ -28,9 +28,14 @@ dataset_config = {
     "eval_dir": os.path.join(dataset_dir), 
     "eval_meta_csv": os.path.join(dataset_dir, "meta.csv"), # to get the full prediction list with index intact
     # "logits_file": os.path.join("predictions","t2i7k5l5", "logits.pt")
+<<<<<<< Updated upstream
     # "logits_file": os.path.join("predictions","ensemble", "ensemble_logits.pt") #specifies where the logit and predictions are stored. 
     # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_PaSST_VAR1.pt") # Var1 Teacher
     "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_PaSST_only.pt") # Control Teacher
+=======
+    "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_PaSST_only.pt") #specifies where the logit and predictions are stored. 
+    # "logits_file": os.path.join("predictions","ensemble", "sub5_6_PaSST_var2_ensemble.pt") # for Var2
+>>>>>>> Stashed changes
     # "eval_dir": os.path.join(dataset_dir, "TAU-urban-acoustic-scenes-2024-mobile-evaluation"), 
     # "eval_meta_csv": os.path.join(dataset_dir,  "TAU-urban-acoustic-scenes-2024-mobile-evaluation", "meta.csv")
 }
