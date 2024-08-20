@@ -317,7 +317,11 @@ class BasicDCASE24Dataseth5(TorchDataset):
         return len(self.files)
     
 def ntu_get_training_set_dir(split=100, dir_prob = False, hf_in=None, hmic_in=None): # this variant is for DIR augmentation
+<<<<<<< Updated upstream
     assert str(split) in ("5", "10", "25", "50", "100","cochl1s","cochl10s"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
+=======
+    assert str(split) in ("5", "10", "25", "50", "100","cochl10s", "cochl1s"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
+>>>>>>> Stashed changes
     os.makedirs(dataset_config['split_path'], exist_ok=True)
     subset_fname = f"split{split}.csv"
     subset_split_file = os.path.join(dataset_config['split_path'], subset_fname)
