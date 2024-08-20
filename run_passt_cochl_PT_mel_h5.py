@@ -512,7 +512,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_cochl_PT_mel_10s_h5")
+    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_cochl_PT_mel_10s_warm_LR_h5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -523,7 +523,7 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', default="cochl")
+    parser.add_argument('--subset', default="cochl10s")
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=13)  # classification model with 'n_classes' output neurons
@@ -546,7 +546,9 @@ if __name__ == '__main__':
     #  2. constant lr phase using value specified in 'lr' (for 'ramp_down_start' - 'warm_up_len' epochs)
     #  3. linearly decreasing to value 'las_lr_value' * 'lr' (for 'ramp_down_len' epochs)
     #  4. finetuning phase using a learning rate of 'last_lr_value' * 'lr' (for the rest of epochs up to 'n_epochs')
-    parser.add_argument('--lr', type=float, default=0.00001)
+    lr = 0.00001 # default
+    warmlr = 0.05*lr
+    parser.add_argument('--lr', type=float, default=warmlr)
     parser.add_argument('--warm_up_len', type=int, default=3)
     parser.add_argument('--ramp_down_start', type=int, default=3)
     parser.add_argument('--ramp_down_len', type=int, default=10)
