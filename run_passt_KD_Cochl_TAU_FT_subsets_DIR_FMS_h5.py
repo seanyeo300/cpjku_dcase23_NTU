@@ -485,7 +485,11 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
+<<<<<<< Updated upstream
     parser.add_argument('--experiment_name', type=str, default="NTU_KD_ControlT_P_AS_TAU_S_FMS_DIR_h5") # This script is meant for pre-trained students
+=======
+    parser.add_argument('--experiment_name', type=str, default="NTU_KD_ControlT_Seq-FT-10s_S_FMS_DIR_h5") # This script is meant for pre-trained students
+>>>>>>> Stashed changes
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
