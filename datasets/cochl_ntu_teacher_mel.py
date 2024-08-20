@@ -24,8 +24,8 @@ dataset_config = {
     "meta_csv": os.path.join(dataset_dir, "meta.csv"), # may need to change this
     "split_path": "split_setup",
     "split_url": "https://github.com/CPJKU/dcase2024_task1_baseline/releases/download/files/",
-    "test_split_csv": "val_cochl.csv",
-    "cochl_test_split_csv": "test_cochl.csv",
+    "test_split_csv": "val_cochl10s.csv",
+    "cochl_test_split_csv": "test_cochl10s.csv",
     "dirs_path": os.path.join("dataset", "dirs"),
     "eval_dir": os.path.join(dataset_dir), 
     "eval_meta_csv": os.path.join(dataset_dir, "meta.csv"), # to get the full prediction list with index intact
@@ -317,7 +317,7 @@ class BasicDCASE24Dataseth5(TorchDataset):
         return len(self.files)
     
 def ntu_get_training_set_dir(split=100, dir_prob = False, hf_in=None, hmic_in=None): # this variant is for DIR augmentation
-    assert str(split) in ("5", "10", "25", "50", "100","cochl"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
+    assert str(split) in ("5", "10", "25", "50", "100","cochl1s","cochl10s"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
     os.makedirs(dataset_config['split_path'], exist_ok=True)
     subset_fname = f"split{split}.csv"
     subset_split_file = os.path.join(dataset_config['split_path'], subset_fname)
