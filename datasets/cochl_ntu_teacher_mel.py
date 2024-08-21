@@ -13,8 +13,8 @@ import pathlib
 import h5py
 from torch.utils.data import Subset
 
-dataset_dir = r"D:\Sean\CochlScene" # Alibaba
-# dataset_dir = r"F:\CochlScene\1s" # DSP
+# dataset_dir = r"D:\Sean\CochlScene" # Alibaba
+dataset_dir = r"F:\CochlScene" # DSP
 assert dataset_dir is not None, "Specify 'TAU Urban Acoustic Scenes 2022 Mobile dataset' location in variable " \
                                 "'dataset_dir'. The dataset can be downloaded from this URL:" \
                                 " https://zenodo.org/record/6337421"
