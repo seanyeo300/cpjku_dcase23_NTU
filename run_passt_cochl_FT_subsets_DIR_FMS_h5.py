@@ -490,7 +490,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_cochl10s_tau_sub5_FMS_DIR")
+    parser.add_argument('--experiment_name', type=str, default="NTU_passt_SlowFast_cochl10s_tau_sub5_FMS_DIR")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
