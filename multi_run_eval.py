@@ -11,15 +11,9 @@ def run_multiple_scripts(scripts_with_args):
 if __name__ == "__main__":
     # Example: Replace these with your actual script names and arguments
     scripts_to_run = [
-<<<<<<< Updated upstream
-        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'jq3y9idk']),
-        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'wai9pzst']),
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'jq3y9idk'])
-=======
-        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'asvkheqw']),
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'wai9pzst']),
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'anijixsa'])
->>>>>>> Stashed changes
+        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', '6ehbfn9i']),
+        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', '59z6lxjj']),
+        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'z0xsdw9o'])
     ]
     run_multiple_scripts(scripts_to_run)
 #25%
