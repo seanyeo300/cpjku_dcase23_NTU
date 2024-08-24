@@ -11,12 +11,12 @@ def run_multiple_scripts(scripts_with_args):
 if __name__ == "__main__":
     # Example: Replace these with your actual script names and arguments
     scripts_to_run = [
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', '6ehbfn9i']),
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', '59z6lxjj']),
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'z0xsdw9o'])
+        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'np41mpe0']),
+        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'sppfybvl']),
+        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--evaluate', '--ckpt_id', 'djwmkaio'])
     ]
     run_multiple_scripts(scripts_to_run)
-#25%
+#25%    
 ["vbkz6eb4","u9kbvlz3","ssezo41p"]
 #10%
 ["buzkwfs9","5xerh8xn","l9vftqos"]
