@@ -30,7 +30,8 @@ dataset_config = {
     # "logits_file": os.path.join("predictions","t2i7k5l5", "logits.pt")
     # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_PaSST_only.pt") #specifies where the logit and predictions are stored. 
     # "logits_file": os.path.join("predictions","ensemble", "sub5_6_PaSST_var2_ensemble.pt") # for Var2 
-    "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_PaSST_3P_slowfast_cochl_3P.pt") # for Var3
+    # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_PaSST_3P_slowfast_cochl_3P.pt") # for Var3
+    "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_slowfast_cochl_6P.pt") # for Var4 
     # "eval_dir": os.path.join(dataset_dir, "TAU-urban-acoustic-scenes-2024-mobile-evaluation"), 
     # "eval_meta_csv": os.path.join(dataset_dir,  "TAU-urban-acoustic-scenes-2024-mobile-evaluation", "meta.csv")
 }
