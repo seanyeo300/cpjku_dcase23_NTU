@@ -45,14 +45,22 @@ class DirDataset(TorchDataset):
 
     def __getitem__(self, index):
         x, file, label, device, city, logits = self.ds[index]
-
+        fsplit = file.rsplit("-", 1)
+        device = fsplit[1][:-4]
         self.device = device
 
         # New devices are created using device A + impulse function + DRC
-        if self.device == 'a' and self.dir_p > np.random.rand():
-            # choose a DIR at random
-            dir_idx = str(int(np.random.randint(0, len(self.hmic))))
-            dir = torch.from_numpy(self.hmic.get(dir_idx)[()])  
+        if device == 'a' and self.dir_p > np.random.rand():
+            all_keys = list(self.hmic.keys())
+            # Choose a random key
+            dir_key = np.random.choice(all_keys)
+            print(f"Selected DIR key: {dir_key}")
+            
+            # Retrieve the corresponding DIR using the key
+            dir = torch.from_numpy(self.hmic.get(dir_key)[()])
+            # # choose a DIR at random
+            # dir_idx = str(int(np.random.randint(0, len(self.hmic))))
+            # dir = torch.from_numpy(self.hmic.get(dir_idx)[()])  
             # get audio file with 'new' mic response
             x = convolve(x, dir, 'full')[:, :x.shape[1]]
             x = torch.from_numpy(x)
