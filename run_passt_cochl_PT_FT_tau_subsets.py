@@ -8,15 +8,14 @@ import argparse
 import os
 import torch.nn as nn
 
-from torch.autograd import Variable
+from helpers.utils import mixstyle
 from helpers.lr_schedule import exp_warmup_linear_down
 from helpers.init import worker_init_fn
 from models.passt import get_model
 from models.mel import AugmentMelSTFT
 from helpers import nessi
-# from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
-from datasets.dcase24_ntu_teacher import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_eval_set, open_h5, close_h5
-from helpers.utils import mixstyle, mixup_data
+from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
+
 import json
 
 torch.set_float32_matmul_precision("high")
@@ -84,11 +83,7 @@ class PLModule(pl.LightningModule):
         y_hat, embed = self.forward(x)
 
         return files, y_hat
-    # def mixup_criterion(self,criterion, pred, y_a, y_b, lam):
-    #         return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
-        
     def training_step(self, batch, batch_idx):
-        criterion = torch.nn.CrossEntropyLoss()
         x, files, labels, devices, cities, teacher_logits = batch
 
         if self.mel:
@@ -96,16 +91,11 @@ class PLModule(pl.LightningModule):
 
         if self.config.mixstyle_p > 0:
             x = mixstyle(x, self.config.mixstyle_p, self.config.mixstyle_alpha)
-            
+
+
         y_hat, embed = self.forward(x)
         labels = labels.long()
-        # inputs, targets_a, targets_b, lam = mixup_data(x, labels,
-                                                    #    self.config.mixup_alpha, use_cuda=True)
-        # inputs, targets_a, targets_b = map(Variable, (inputs,
-                                                    #   targets_a, targets_b))
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
-
-        # loss = self.mixup_criterion(criterion,y_hat, targets_a, targets_b, lam)
 
         loss = samples_loss.mean()
         samples_loss = samples_loss.detach()
@@ -323,20 +313,16 @@ def train(config):
         name=config.experiment_name
     )
 
-    ######### h5 edit here ###############
-    # get pointer to h5 file containing audio samples
-    hf_in = open_h5('h5py_audio_wav')
-    hmic_in = open_h5('h5py_mic_wav_1')
-
-    # get_training set already as logic to handle dir_prob=0
-    train_dl = DataLoader(dataset=ntu_get_training_set_dir(config.subset, config.dir_prob, hf_in, hmic_in),
+    # train dataloader
+    train_dl = DataLoader(dataset=get_training_set(config.cache_path, config.subset, config.resample_rate, config.roll,
+                                                   config.dir_prob),
                           worker_init_fn=worker_init_fn,
                           num_workers=config.num_workers,
                           batch_size=config.batch_size,
-                          
                           shuffle=True)
-    
-    test_dl = DataLoader(dataset=ntu_get_test_set(hf_in),
+
+    # test loader
+    test_dl = DataLoader(dataset=get_test_set(config.cache_path, config.resample_rate),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
@@ -352,6 +338,7 @@ def train(config):
             print(f"found ckpt file: {file}")
     pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
     pl_module = load_and_modify_checkpoint(pl_module, num_classes=10)
+
     # get model complexity from nessi and log results to wandb
     # ATTENTION: this is before layer fusion, therefore the MACs and Params slightly deviate from what is
     # reported in the challenge submission
@@ -372,15 +359,11 @@ def train(config):
     trainer = pl.Trainer(max_epochs=config.n_epochs,
                          logger=wandb_logger,
                          accelerator='gpu',
-                         devices=1, #2
+                         devices=1,
                          callbacks=[lr_monitor, checkpoint_callback])
     # start training and validation for the specified number of epochs
     trainer.fit(pl_module, train_dl, test_dl)
     trainer.test(ckpt_path='best', dataloaders=test_dl)
-    ############ h5 edit end #################
-    # close file pointer to h5 file 
-    close_h5(hf_in)
-    close_h5(hmic_in)
     
 def evaluate(config):
     import os
@@ -408,25 +391,16 @@ def evaluate(config):
 
     # load lightning module from checkpoint
     pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
-    
-    ############# h5 edit here ##############
-    # Open h5 file once
-    hf_in = open_h5('h5py_audio_wav')
-    eval_hf = open_h5('h5py_audio_wav2') # only when obtaining pre-computed train
-    # eval_hf = open_h5('h5py_audio_eval_wav')
-    # load lightning module from checkpoint
-    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
     trainer = pl.Trainer(logger=False,
                          accelerator='gpu',
                          devices=[0],
                          precision=config.precision)
-    ############# h5 edit here ##############
+
     # evaluate lightning module on development-test split
-    test_dl = DataLoader(dataset=ntu_get_test_set(hf_in),
+    test_dl = DataLoader(dataset=get_test_set(config.cache_path, config.resample_rate),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
-                         batch_size=config.batch_size,
-                         pin_memory=True)
+                         batch_size=config.batch_size)
 
     # get model complexity from nessi
     sample = next(iter(test_dl))[0][0].unsqueeze(0).to(pl_module.device)
@@ -449,13 +423,11 @@ def evaluate(config):
     res = trainer.test(pl_module, test_dl,ckpt_path=ckpt_file)
     info['test'] = res
 
-    ############# h5 edit here ##############
     # generate predictions on evaluation set
-    eval_dl = DataLoader(dataset=ntu_get_eval_set(eval_hf),
+    eval_dl = DataLoader(dataset=get_eval_set(),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
-    
     predictions = trainer.predict(pl_module, dataloaders=eval_dl, ckpt_path=ckpt_file) # predictions returns as files, y_hat
     # all filenames
     all_files = [item[len("audio/"):] for files, _ in predictions for item in files]
@@ -480,23 +452,18 @@ def evaluate(config):
     torch.save(pl_module.model.state_dict(), os.path.join(out_dir, "model_state_dict.pt"))
     with open(os.path.join(out_dir, "info.json"), "w") as json_file:
         json.dump(info, json_file)
-        
-    ############# h5 edit here ##############
-    close_h5(hf_in)
-    close_h5(eval_hf)
-    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_Seq-FT_0r39k52v_sub5_FMS_DIR")
+    parser.add_argument('--experiment_name', type=str, default="NTU_PaSST_nh5_441K_FMS_DIR")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
-    parser.add_argument('--ckpt_id', type=str, default="0r39k52v")  # for loading trained model, corresponds to wandb id
+    parser.add_argument('--ckpt_id', type=str, default=None)  # for loading trained model, corresponds to wandb id
 
     # dataset
     # location to store resampled waveform
@@ -504,7 +471,7 @@ if __name__ == '__main__':
     parser.add_argument('--subset', type=int, default=5)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
-    parser.add_argument('--n_classes', type=int, default=13)  # classification model with 'n_classes' output neurons
+    parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
     parser.add_argument('--input_fdim', type=int, default=128)
     parser.add_argument('--s_patchout_t', type=int, default=0)
     parser.add_argument('--s_patchout_f', type=int, default=6)
@@ -517,7 +484,7 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', type=float, default=0.001)
     parser.add_argument('--roll', type=int, default=4000)  # roll waveform over time
     parser.add_argument('--dir_prob', type=float, default=0.6)  # prob. to apply device impulse response augmentation # need to specify
-    # parser.add_argument('--mixup_alpha', type=float, default=1.0)
+
     # learning rate + schedule
     # phases:
     #  1. exponentially increasing warmup phase (for 'warm_up_len' epochs)
