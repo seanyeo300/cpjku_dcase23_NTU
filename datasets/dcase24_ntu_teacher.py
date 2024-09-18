@@ -30,8 +30,16 @@ dataset_config = {
     # "logits_file": os.path.join("predictions","t2i7k5l5", "logits.pt")
     # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_PaSST_only.pt") #specifies where the logit and predictions are stored. 
     # "logits_file": os.path.join("predictions","ensemble", "sub5_6_PaSST_var2_ensemble.pt") # for Var2 
-    # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_PaSST_3P_slowfast_cochl_3P.pt") # for Var3
-    "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_slowfast_cochl_6P.pt") # for Var4 
+    # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_Var3_1e-4.pt") # for Var3
+    "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_Var4_1e-4.pt") # for Var4 
+    # "logits_file": os.path.join("predictions","ensemble", "Self_KD_scdhurtv.pt") #
+    # "logits_file": os.path.join("predictions","ensemble", "SKD1_gen1_ta2cny2q.pt") # SKD1 gen1 logits 
+    # "logits_file": os.path.join("predictions","ensemble", "SKD1_gen2_nmc8pby8.pt") # SKD1 gen2 logits 
+    # "logits_file": os.path.join("predictions","ensemble", "SKD3_gen1_9k9tqv48.pt")
+    # "logits_file": os.path.join("predictions","ensemble", "Self_KD2_xkuktx0p.pt") #SKD2
+    # "logits_file": os.path.join("predictions","ensemble", "SKDvar5.pt") # SKD1 gen2 logits 
+    
+    
     # "eval_dir": os.path.join(dataset_dir, "TAU-urban-acoustic-scenes-2024-mobile-evaluation"), 
     # "eval_meta_csv": os.path.join(dataset_dir,  "TAU-urban-acoustic-scenes-2024-mobile-evaluation", "meta.csv")
 }
@@ -47,14 +55,22 @@ class DirDataset(TorchDataset):
 
     def __getitem__(self, index):
         x, file, label, device, city, logits = self.ds[index]
-
+        fsplit = file.rsplit("-", 1)
+        device = fsplit[1][:-4]
         self.device = device
 
         # New devices are created using device A + impulse function + DRC
-        if self.device == 'a' and self.dir_p > np.random.rand():
-            # choose a DIR at random
-            dir_idx = str(int(np.random.randint(0, len(self.hmic))))
-            dir = torch.from_numpy(self.hmic.get(dir_idx)[()])  
+        if device == 'a' and self.dir_p > np.random.rand():
+            all_keys = list(self.hmic.keys())
+            # Choose a random key
+            dir_key = np.random.choice(all_keys)
+            print(f"Selected DIR key: {dir_key}")
+            
+            # Retrieve the corresponding DIR using the key
+            dir = torch.from_numpy(self.hmic.get(dir_key)[()])
+            # # choose a DIR at random
+            # dir_idx = str(int(np.random.randint(0, len(self.hmic))))
+            # dir = torch.from_numpy(self.hmic.get(dir_idx)[()])  
             # get audio file with 'new' mic response
             x = convolve(x, dir, 'full')[:, :x.shape[1]]
             x = torch.from_numpy(x)
