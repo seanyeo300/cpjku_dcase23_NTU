@@ -328,15 +328,7 @@ def train(config):
                           num_workers=config.num_workers,
                           batch_size=config.batch_size,
                           shuffle=True)
-    train_dl = DataLoader(dataset=get_training_set(config.cache_path,
-                                                   config.subset,
-                                                   config.resample_rate,
-                                                   config.roll,
-                                                    config.dir_prob),
-                            worker_init_fn=worker_init_fn,
-                            num_workers=config.num_workers,
-                            batch_size=config.batch_size,
-                            shuffle=True)
+    
     # test loader
     test_dl = DataLoader(dataset=get_test_set(config.cache_path, config.resample_rate),
                          worker_init_fn=worker_init_fn,
