@@ -19,7 +19,7 @@ from datasets.dcase24_ntu_teacher import ntu_get_training_set_dir, ntu_get_test_
 from helpers.utils import mixstyle, mixup_data
 import json
 
-torch.set_float32_matmul_precision("high")
+torch.set_float32_matmul_precision("highest")
 # def load_and_modify_checkpoint(pl_module,num_classes=10):
 #         # Modify the final layer
 #         pl_module.model.head = nn.Sequential(
@@ -487,8 +487,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
     # general
-    parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_Seq_AS_Cochl_sub10_441K_FMS_DIR_test_h5")
+    parser.add_argument('--project_name', type=str, default="NTU_h5_test")
+    parser.add_argument('--experiment_name', type=str, default="NTU_PaSST_h5_441K_FMS_DIR_compare_outputs")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -508,7 +508,7 @@ if __name__ == '__main__':
     parser.add_argument('--s_patchout_f', type=int, default=6)
 
     # training
-    parser.add_argument('--n_epochs', type=int, default=25)
+    parser.add_argument('--n_epochs', type=int, default=2)
     parser.add_argument('--batch_size', type=int, default=80)
     parser.add_argument('--mixstyle_p', type=float, default=0.4)  # frequency mixstyle
     parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
