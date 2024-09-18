@@ -311,7 +311,7 @@ class PLModule(pl.LightningModule):
         # Define the optimizer with parameter groups
         optimizer = torch.optim.Adam([
             {'params': representation_params, 'lr': self.config.lr},  # Low learning rate for representation layers
-            {'params': head_params, 'lr': self.config.lr*100},             # High learning rate for classifier heads
+            {'params': head_params, 'lr': 0.001},             # High learning rate for classifier heads
         ], weight_decay=self.config.weight_decay)
         schedule_lambda = \
             exp_warmup_linear_down(self.config.warm_up_len, self.config.ramp_down_len, self.config.ramp_down_start,
@@ -500,13 +500,13 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_double_SlowFast_cochl10s_tau_sub5_FMS_DIR_PretrainedStudent")
+    parser.add_argument('--experiment_name', type=str, default="NTU_passt_double_SlowFast_1e-5_cochl10s_tau_sub5_FMS_DIR_PretrainedStudent")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
-    parser.add_argument('--ckpt_id', type=str, default=None)  # for loading trained model, corresponds to wandb id
+    parser.add_argument('--ckpt_id', type=str, default='wk50wxro')  # for loading trained model, corresponds to wandb id
 
     # dataset
     # location to store resampled waveform
@@ -534,7 +534,7 @@ if __name__ == '__main__':
     #  2. constant lr phase using value specified in 'lr' (for 'ramp_down_start' - 'warm_up_len' epochs)
     #  3. linearly decreasing to value 'las_lr_value' * 'lr' (for 'ramp_down_len' epochs)
     #  4. finetuning phase using a learning rate of 'last_lr_value' * 'lr' (for the rest of epochs up to 'n_epochs')
-    parser.add_argument('--lr', type=float, default=0.00001)
+    parser.add_argument('--lr', type=float, default=1e-5)
     parser.add_argument('--warm_up_len', type=int, default=3)
     parser.add_argument('--ramp_down_start', type=int, default=3)
     parser.add_argument('--ramp_down_len', type=int, default=10)
