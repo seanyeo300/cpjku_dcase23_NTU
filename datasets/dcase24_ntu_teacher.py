@@ -64,7 +64,7 @@ class DirDataset(TorchDataset):
             all_keys = list(self.hmic.keys())
             # Choose a random key
             dir_key = np.random.choice(all_keys)
-            print(f"Selected DIR key: {dir_key}")
+            # print(f"Selected DIR key: {dir_key}")
             
             # Retrieve the corresponding DIR using the key
             dir = torch.from_numpy(self.hmic.get(dir_key)[()])
