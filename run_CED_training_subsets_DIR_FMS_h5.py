@@ -91,13 +91,23 @@ class PLModule(pl.LightningModule):
         criterion = torch.nn.CrossEntropyLoss()
         x, files, labels, devices, cities, teacher_logits = batch
         
-        x = self.mel_forward(x)
-        y_hat, embed = self.forward(x)
+        x = self.mel_forward(x) # resamples the audio (FOR CED only)
+        for chunk_idx, chunk in enumerate(
+                x.split(int(self.config.chunk_length * 16000), -1)):
+            logits = self.forward(chunk).squeeze(0)  # Get model outputs (logits)
+            probabilities = F.softmax(logits, dim=0)      # Apply softmax to get probabilities
+            print(f"probabilities from CED model: {probabilities}")
+            print(f"logits look like this: {logits}")
+        # y_hat, embed = self.forward(x)
         labels = labels.long()
+        label_maps = ['airport', 'bus', 'metro', 'metro_station', 'park', 'public_square', 'shopping_mall','street_pedestrian', 'street_traffic', 'tram']
+        pred_idx = torch.argmax(probabilities).item()
+        print(f"final prediction index looks like this: {pred_idx}")
         # inputs, targets_a, targets_b, lam = mixup_data(x, labels,
                                                     #    self.config.mixup_alpha, use_cuda=True)
         # inputs, targets_a, targets_b = map(Variable, (inputs,
                                                     #   targets_a, targets_b))
+        y_hat=logits
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
 
         # loss = self.mixup_criterion(criterion,y_hat, targets_a, targets_b, lam)
@@ -105,7 +115,8 @@ class PLModule(pl.LightningModule):
         loss = samples_loss.mean()
         samples_loss = samples_loss.detach()
 
-        _, preds = torch.max(y_hat, dim=1)
+        # _, preds = torch.max(y_hat, dim=1)
+        preds=pred_idx
         n_correct_pred = (preds == labels).sum()
         results = {"loss": loss, "n_correct_pred": n_correct_pred, "n_pred": len(labels)}
 
@@ -489,26 +500,24 @@ if __name__ == '__main__':
     # model
     parser.add_argument('--arch', type=str, default='ced_mini')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
-    parser.add_argument('--input_fdim', type=int, default=128)
-    parser.add_argument('--s_patchout_t', type=int, default=0)
-    parser.add_argument('--s_patchout_f', type=int, default=6)
+    # parser.add_argument('--input_fdim', type=int, default=128)
+    # parser.add_argument('--s_patchout_t', type=int, default=0)
+    # parser.add_argument('--s_patchout_f', type=int, default=6)
 
     # training
-    parser.add_argument('--n_epochs', type=int, default=2)
+    parser.add_argument('--n_epochs', type=int, default=80) # Following DyMN, default=80
     parser.add_argument('--batch_size', type=int, default=80)
-    parser.add_argument('--mixstyle_p', type=float, default=0.4)  # frequency mixstyle
-    parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
     parser.add_argument('--weight_decay', type=float, default=0.001)
-    parser.add_argument('--roll', type=int, default=4000)  # roll waveform over time
     parser.add_argument('--dir_prob', type=float, default=0)  # prob. to apply device impulse response augmentation # need to specify
     # parser.add_argument('--mixup_alpha', type=float, default=1.0)
     
     # peak learning rate (in cosinge schedule)
-    parser.add_argument('--lr', type=float, default=0.005)
+    parser.add_argument('--lr', type=float, default=1e-4) # DyMN uses 1e-4
     parser.add_argument('--warmup_steps', type=int, default=100) # default = 2000, divide by 20 for 5% subset, 10 for 10%, 4 for 25%, 2 for 50%
 
     # preprocessing
     parser.add_argument('--resample_rate', type=int, default=16000) # default =32000
+    parser.add_argument('--chunk_length', type=float, default=1.0) # Define audio sample length in seconds
     # parser.add_argument('--window_size', type=int, default=800)  # in samples
     # parser.add_argument('--hop_size', type=int, default=320)  # in samples
     # parser.add_argument('--n_fft', type=int, default=1024)  # length (points) of fft
