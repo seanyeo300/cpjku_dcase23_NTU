@@ -29,9 +29,13 @@ dataset_config = {
     "eval_meta_csv": os.path.join(dataset_dir, "meta.csv"), # to get the full prediction list with index intact
     # "logits_file": os.path.join("predictions","t2i7k5l5", "logits.pt")
     # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_PaSST_only.pt") #specifies where the logit and predictions are stored. 
-    # "logits_file": os.path.join("predictions","ensemble", "sub5_6_PaSST_var2_ensemble.pt") # for Var2 
-    # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_Var3_1e-4.pt") # for Var3
-    "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_Var4_1e-4.pt") # for Var4 
+    # "logits_file": os.path.join("predictions","ensemble", "sub5_6_PaSST_var2_ensemble.pt") # for Var2
+    
+    # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_PASST_tv1.pt") # 
+    "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_model_tv2b.pt") # tv2 
+    # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_model_tv3b.pt") # tv3 
+    # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_tv3.pt") # tv3
+    
     # "logits_file": os.path.join("predictions","ensemble", "Self_KD_scdhurtv.pt") #
     # "logits_file": os.path.join("predictions","ensemble", "SKD1_gen1_ta2cny2q.pt") # SKD1 gen1 logits 
     # "logits_file": os.path.join("predictions","ensemble", "SKD1_gen2_nmc8pby8.pt") # SKD1 gen2 logits 
