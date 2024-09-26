@@ -6,23 +6,31 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import LearningRateMonitor
 import argparse
 import os
-from torch.autograd import Variable
+import torch.nn as nn
 
-from helpers.utils import mixstyle, mixup_data
+from torch.autograd import Variable
 from helpers.lr_schedule import exp_warmup_linear_down
 from helpers.init import worker_init_fn
 from models.passt import get_model
 from models.mel import AugmentMelSTFT
 from helpers import nessi
-from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
-
+# from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
+from datasets.dcase24_ntu_teacher_tv1 import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_eval_set, open_h5, close_h5
+from helpers.utils import mixstyle, mixup_data
 import json
 
 torch.set_float32_matmul_precision("high")
-
+def load_and_modify_checkpoint(pl_module,num_classes=10):
+        # Modify the final layer
+        pl_module.model.head = nn.Sequential(
+            nn.LayerNorm((768,), eps=1e-05, elementwise_affine=True),
+            nn.Linear(768, num_classes)
+        )
+        pl_module.model.head_dist = nn.Linear(768, num_classes)
+        return pl_module
 class PLModule(pl.LightningModule):
     def __init__(self, config):
-        super(PLModule, self).__init__()
+        super().__init__()
 
         self.config = config
         # model to preprocess waveforms into log mel spectrograms
@@ -51,7 +59,7 @@ class PLModule(pl.LightningModule):
         self.device_groups = {'a': "real", 'b': "real", 'c': "real",
                               's1': "seen", 's2': "seen", 's3': "seen",
                               's4': "unseen", 's5': "unseen", 's6': "unseen"}
-
+        self.kl_div_loss = nn.KLDivLoss(log_target=True, reduction="none") # KL Divergence loss for soft, check log_target 
         self.calc_device_info = True
         self.epoch = 0
         self.training_step_outputs = []
@@ -75,30 +83,28 @@ class PLModule(pl.LightningModule):
         y_hat, embed = self.forward(x)
 
         return files, y_hat
+    # def mixup_criterion(self,criterion, pred, y_a, y_b, lam):
+    #         return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
+        
     def training_step(self, batch, batch_idx):
         criterion = torch.nn.CrossEntropyLoss()
-        def mixup_criterion(criterion, pred, y_a, y_b, lam):
-            return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
-        
         x, files, labels, devices, cities, teacher_logits = batch
 
         if self.mel:
             x = self.mel_forward(x)
-
-        if self.config.mixstyle_p > 0:
-            x = mixstyle(x, self.config.mixstyle_p, self.config.mixstyle_alpha)
-
-
+            
         y_hat, embed = self.forward(x)
         labels = labels.long()
-        inputs, targets_a, targets_b, lam = mixup_data(x, labels,
-                                                       self.config.mixup_alpha, use_cuda=True)
-        inputs, targets_a, targets_b = map(Variable, (inputs,
-                                                      targets_a, targets_b))
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
-
-        loss = mixup_criterion(criterion,y_hat, targets_a, targets_b, lam)
-
+        # At this point we want to perform KLdiv loss      
+        label_loss = samples_loss.mean()
+        # Temperature adjusted probabilities of teacher and student
+        with torch.cuda.amp.autocast():
+            y_hat_soft = F.log_softmax(y_hat / self.config.temperature, dim=-1)
+            teacher_logits = F.log_softmax(teacher_logits / self.config.temperature, dim=-1)
+        kd_loss = self.kl_div_loss(y_hat_soft, teacher_logits).mean()
+        kd_loss = kd_loss * (self.config.temperature ** 2)
+        loss = self.config.kd_lambda * label_loss + (1 - self.config.kd_lambda) * kd_loss
         _, preds = torch.max(y_hat, dim=1)
         n_correct_pred = (preds == labels).sum()
         results = {"loss": loss, "n_correct_pred": n_correct_pred, "n_pred": len(labels)}
@@ -152,7 +158,7 @@ class PLModule(pl.LightningModule):
         n_correct_pred = n_correct_pred_per_sample.sum()
         results = {"val_loss": loss, "n_correct_pred": n_correct_pred, "n_pred": len(labels)}
 
-        if self.calc_device_info:
+        '''if self.calc_device_info:
             devices = [d.rsplit("-", 1)[1][:-4] for d in files]
             for d in self.device_ids:
                 results["devloss." + d] = torch.as_tensor(0., device=self.device)
@@ -162,7 +168,7 @@ class PLModule(pl.LightningModule):
             for i, d in enumerate(devices):
                 results["devloss." + d] = results["devloss." + d] + samples_loss[i]
                 results["devn_correct." + d] = results["devn_correct." + d] + n_correct_pred_per_sample[i]
-                results["devcnt." + d] = results["devcnt." + d] + 1
+                results["devcnt." + d] = results["devcnt." + d] + 1'''
         return results
 
     def validation_epoch_end(self, outputs):
@@ -171,7 +177,7 @@ class PLModule(pl.LightningModule):
         val_acc = sum([x['n_correct_pred'] for x in outputs]) * 1.0 / sum(x['n_pred'] for x in outputs)
         logs = {'val.loss': avg_loss, 'val_acc': val_acc}
 
-        if self.calc_device_info:
+        '''if self.calc_device_info:
             for d in self.device_ids:
                 dev_loss = torch.stack([x["devloss." + d] for x in outputs]).sum()
                 dev_cnt = torch.stack([x["devcnt." + d] for x in outputs]).sum()
@@ -186,7 +192,7 @@ class PLModule(pl.LightningModule):
 
             for d in set(self.device_groups.values()):
                 logs["acc." + d] = logs["acc." + d] / logs["count." + d]
-                logs["lloss.False" + d] = logs["lloss." + d] / logs["count." + d]
+                logs["lloss.False" + d] = logs["lloss." + d] / logs["count." + d]'''
 
         self.log_dict(logs)
 
@@ -312,23 +318,38 @@ def train(config):
         name=config.experiment_name
     )
 
-    # train dataloader
-    train_dl = DataLoader(dataset=get_training_set(config.cache_path, config.subset, config.resample_rate, config.roll,
-                                                   config.dir_prob),
+    ######### h5 edit here ###############
+    # get pointer to h5 file containing audio samples
+    hf_in = open_h5('h5py_audio_wav')
+    hmic_in = open_h5('h5py_mic_wav_1')
+
+    # get_training set already as logic to handle dir_prob=0
+    train_dl = DataLoader(dataset=ntu_get_training_set_dir(config.subset, config.dir_prob, hf_in, hmic_in),
                           worker_init_fn=worker_init_fn,
                           num_workers=config.num_workers,
                           batch_size=config.batch_size,
+                          
                           shuffle=True)
-
-    # test loader
-    test_dl = DataLoader(dataset=get_test_set(config.cache_path, config.resample_rate),
+    
+    test_dl = DataLoader(dataset=ntu_get_test_set(hf_in),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
 
     # create pytorch lightening module
-    pl_module = PLModule(config)
-
+    ckpt_id = None if config.ckpt_id == "None" else config.ckpt_id
+    if ckpt_id is not None:
+        ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
+        assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
+        #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
+        for file in os.listdir(ckpt_dir):
+            if "epoch" in file:
+                ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
+                print(f"found ckpt file: {file}")
+        pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    else:
+        pl_module = PLModule(config) # this initializes the model pre-trained on audioset
+    # pl_module = load_and_modify_checkpoint(pl_module, 10)
     # get model complexity from nessi and log results to wandb
     # ATTENTION: this is before layer fusion, therefore the MACs and Params slightly deviate from what is
     # reported in the challenge submission
@@ -354,6 +375,10 @@ def train(config):
     # start training and validation for the specified number of epochs
     trainer.fit(pl_module, train_dl, test_dl)
     trainer.test(ckpt_path='best', dataloaders=test_dl)
+    ############ h5 edit end #################
+    # close file pointer to h5 file 
+    close_h5(hf_in)
+    close_h5(hmic_in)
     
 def evaluate(config):
     import os
@@ -369,6 +394,7 @@ def evaluate(config):
     for file in os.listdir(ckpt_dir):
         if "epoch" in file:
             ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
+            print(f"found ckpt file: {file}")
     # ckpt_file = os.path.join(ckpt_dir, "xyz.ckpt") # Change the path to the model path desired
     assert os.path.exists(ckpt_file), f"No such file: {ckpt_file}. Implement your own mechanism to select" \
                                       f"the desired checkpoint."
@@ -380,16 +406,25 @@ def evaluate(config):
 
     # load lightning module from checkpoint
     pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    
+    ############# h5 edit here ##############
+    # Open h5 file once
+    hf_in = open_h5('h5py_audio_wav')
+    eval_hf = open_h5('h5py_audio_wav2') # only when obtaining pre-computed train
+    # eval_hf = open_h5('h5py_audio_eval_wav')
+    # load lightning module from checkpoint
+    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
     trainer = pl.Trainer(logger=False,
                          accelerator='gpu',
-                         devices=1,
+                         devices=0,
                          precision=config.precision)
-
+    ############# h5 edit here ##############
     # evaluate lightning module on development-test split
-    test_dl = DataLoader(dataset=get_test_set(),
+    test_dl = DataLoader(dataset=ntu_get_test_set(hf_in),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
-                         batch_size=config.batch_size)
+                         batch_size=config.batch_size,
+                         pin_memory=True)
 
     # get model complexity from nessi
     sample = next(iter(test_dl))[0][0].unsqueeze(0).to(pl_module.device)
@@ -409,15 +444,17 @@ def evaluate(config):
     info = {}
     info['MACs'] = macs
     info['Params'] = params
-    res = trainer.test(pl_module, test_dl)
+    res = trainer.test(pl_module, test_dl,ckpt_path=ckpt_file)
     info['test'] = res
 
+    ############# h5 edit here ##############
     # generate predictions on evaluation set
-    eval_dl = DataLoader(dataset=get_eval_set(),
+    eval_dl = DataLoader(dataset=ntu_get_eval_set(eval_hf),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
-    predictions = trainer.predict(pl_module, dataloaders=eval_dl) # predictions returns as files, y_hat
+    
+    predictions = trainer.predict(pl_module, dataloaders=eval_dl, ckpt_path=ckpt_file) # predictions returns as files, y_hat
     # all filenames
     all_files = [item[len("audio/"):] for files, _ in predictions for item in files]
     # all predictions
@@ -441,23 +478,28 @@ def evaluate(config):
     torch.save(pl_module.model.state_dict(), os.path.join(out_dir, "model_state_dict.pt"))
     with open(os.path.join(out_dir, "info.json"), "w") as json_file:
         json.dump(info, json_file)
+        
+    ############# h5 edit here ##############
+    close_h5(hf_in)
+    close_h5(eval_hf)
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
     # general
-    parser.add_argument('--project_name', type=str, default="DCASE24_Task1")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_teacher_training1_sub100_441K")
+    parser.add_argument('--project_name', type=str, default="NTU24_ASC")
+    parser.add_argument('--experiment_name', type=str, default="NTU_KD_Var1-T_SIT-S_FMS_sub5_fixh5") # This script is meant for pre-trained students
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
-    parser.add_argument('--ckpt_id', type=str, default=None)  # for loading trained model, corresponds to wandb id
+    parser.add_argument('--ckpt_id', type=str, required=False, default="dbl1yun4")  # for loading trained model, corresponds to wandb id
 
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=100)
+    parser.add_argument('--subset', type=int, default=5)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
@@ -468,12 +510,12 @@ if __name__ == '__main__':
     # training
     parser.add_argument('--n_epochs', type=int, default=25)
     parser.add_argument('--batch_size', type=int, default=80)
-    parser.add_argument('--mixstyle_p', type=float, default=0)  # frequency mixstyle
+    parser.add_argument('--mixstyle_p', type=float, default=0.4)  # frequency mixstyle
     parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
     parser.add_argument('--weight_decay', type=float, default=0.001)
     parser.add_argument('--roll', type=int, default=4000)  # roll waveform over time
     parser.add_argument('--dir_prob', type=float, default=0.6)  # prob. to apply device impulse response augmentation # need to specify
-
+    # parser.add_argument('--mixup_alpha', type=float, default=1.0)
     # learning rate + schedule
     # phases:
     #  1. exponentially increasing warmup phase (for 'warm_up_len' epochs)
@@ -485,7 +527,9 @@ if __name__ == '__main__':
     parser.add_argument('--ramp_down_start', type=int, default=3)
     parser.add_argument('--ramp_down_len', type=int, default=10)
     parser.add_argument('--last_lr_value', type=float, default=0.01)  # relative to 'lr'
-
+    ## knowledge distillation
+    parser.add_argument('--temperature', type=float, default=2.0)
+    parser.add_argument('--kd_lambda', type=float, default=0.02) # default is 0.02
     # preprocessing
     parser.add_argument('--resample_rate', type=int, default=44100) # default =32000
     parser.add_argument('--window_size', type=int, default=800)  # in samples

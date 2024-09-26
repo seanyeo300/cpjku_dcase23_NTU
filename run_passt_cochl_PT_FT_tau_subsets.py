@@ -457,7 +457,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_PaSST_nh5_441K_FMS_DIR")
+    parser.add_argument('--experiment_name', type=str, default="NTU_PaSST_SLcs_FTtau")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -471,7 +471,7 @@ if __name__ == '__main__':
     parser.add_argument('--subset', type=int, default=5)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
-    parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
+    parser.add_argument('--n_classes', type=int, default=13)  # classification model with 'n_classes' output neurons
     parser.add_argument('--input_fdim', type=int, default=128)
     parser.add_argument('--s_patchout_t', type=int, default=0)
     parser.add_argument('--s_patchout_f', type=int, default=6)

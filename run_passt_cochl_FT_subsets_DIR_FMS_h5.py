@@ -15,7 +15,7 @@ from models.passt import get_model
 from models.mel import AugmentMelSTFT
 from helpers import nessi
 # from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
-from datasets.dcase24_ntu_teacher import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_eval_set, open_h5, close_h5
+from datasets.dcase24_ntu_teacher_tv2 import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_eval_set, open_h5, close_h5
 from helpers.utils import mixstyle, mixup_data
 import json
 
@@ -489,14 +489,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
     # general
+    # This script is used to fine-tune on TAU22 after pre-training on CochlScene (Either SL or FT is fine for CS stage)
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_Seq-FT_0r39k52v_sub5_FMS_DIR")
+    parser.add_argument('--experiment_name', type=str, default="NTU_PaSST_SLcs_FTtau_qrrag30b_sub5_FMS_DIR_fixh5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
-    parser.add_argument('--precision', type=str, default="32")
+    parser.add_argument('--precision', type=str, default="32")  
     
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
-    parser.add_argument('--ckpt_id', type=str, default="0r39k52v")  # for loading trained model, corresponds to wandb id
+    parser.add_argument('--ckpt_id', type=str, default="qrrag30b")  # for loading trained model, corresponds to wandb id
 
     # dataset
     # location to store resampled waveform

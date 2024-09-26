@@ -14,7 +14,7 @@ from models.passt import get_model
 from models.mel import AugmentMelSTFT
 from helpers import nessi
 # from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
-from datasets.dcase24_ntu_teacher import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_eval_set, open_h5, close_h5
+from datasets.dcase24_ntu_teacher_tv2 import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_eval_set, open_h5, close_h5
 from helpers.utils import mixstyle, mixup_data
 import json
 

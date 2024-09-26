@@ -15,7 +15,7 @@ from models.passt import get_model
 from models.mel import AugmentMelSTFT
 from helpers import nessi
 # from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
-from datasets.dcase24_ntu_teacher import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_eval_set, open_h5, close_h5
+from datasets.dcase24_ntu_teacher_tv3 import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_eval_set, open_h5, close_h5
 from helpers.utils import mixstyle, mixup_data
 import json
 
@@ -337,15 +337,18 @@ def train(config):
                          batch_size=config.batch_size)
 
     # create pytorch lightening module
-    # pl_module = PLModule(config) # this initializes the model pre-trained on audioset
-    ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
-    assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
-    #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
-    for file in os.listdir(ckpt_dir):
-        if "epoch" in file:
-            ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
-            print(f"found ckpt file: {file}")
-    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    ckpt_id = None if config.ckpt_id == "None" else config.ckpt_id
+    if ckpt_id is not None:
+        ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
+        assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
+        #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
+        for file in os.listdir(ckpt_dir):
+            if "epoch" in file:
+                ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
+                print(f"found ckpt file: {file}")
+        pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    else:
+        pl_module = PLModule(config) # this initializes the model pre-trained on audioset
     # pl_module = load_and_modify_checkpoint(pl_module, 10)
     # get model complexity from nessi and log results to wandb
     # ATTENTION: this is before layer fusion, therefore the MACs and Params slightly deviate from what is
@@ -485,13 +488,13 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_KD_Var4_T_6s3nnaij_S_FMS_DIR_h5") # This script is meant for pre-trained students
+    parser.add_argument('--experiment_name', type=str, default="NTU_KD_Var1_T_SIT-S_FMS_DIR_fixh5") # This script is meant for pre-trained students
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
-    parser.add_argument('--ckpt_id', type=str, default="6s3nnaij")  # for loading trained model, corresponds to wandb id
+    parser.add_argument('--ckpt_id', type=str, required=False, default="zs2yso3b")  # for loading trained model, corresponds to wandb id
 
     # dataset
     # location to store resampled waveform

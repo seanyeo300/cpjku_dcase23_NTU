@@ -15,7 +15,7 @@ from models.passt import get_model
 from models.mel import AugmentMelSTFT
 from helpers import nessi
 # from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
-from datasets.dcase24_ntu_teacher import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_eval_set, open_h5, close_h5
+from datasets.dcase24_ntu_teacher_tv2 import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_eval_set, open_h5, close_h5
 from helpers.utils import mixstyle, mixup_data
 import json
 
@@ -500,7 +500,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_double_SlowFast_1e-5_cochl10s_tau_sub5_FMS_DIR_PretrainedStudent")
+    parser.add_argument('--experiment_name', type=str, default="NTU_passt_SLcs_SLtau_wk50wxro_sub10_FMS_DIR_PretrainedStudent_fixh5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -511,7 +511,7 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=5)
+    parser.add_argument('--subset', type=int, default=10)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=13)  # classification model with 'n_classes' output neurons
