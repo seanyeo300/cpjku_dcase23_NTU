@@ -488,7 +488,7 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_FTtau_441K_FMS_DIR_fixh5")
+    parser.add_argument('--experiment_name', type=str, default="NTU_passt_FTtau_441K_FMS_fixh5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
@@ -514,7 +514,7 @@ if __name__ == '__main__':
     parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
     parser.add_argument('--weight_decay', type=float, default=0.001)
     parser.add_argument('--roll', type=int, default=4000)  # roll waveform over time
-    parser.add_argument('--dir_prob', type=float, default=0.6)  # prob. to apply device impulse response augmentation # need to specify
+    parser.add_argument('--dir_prob', type=float, default=0 ) # prob. to apply device impulse response augmentation # need to specify
     # parser.add_argument('--mixup_alpha', type=float, default=1.0)
     # learning rate + schedule
     # phases:
