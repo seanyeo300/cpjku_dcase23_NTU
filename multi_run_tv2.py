@@ -60,16 +60,16 @@ if __name__ == "__main__":
     script_name = 'run_passt_KD_Cochl_TAU_FT_subsets_DIR_FMS_h5_tv2.py'
     
     # Base arguments (common to all runs, except experiment name and ckpt_id)
-    base_args = ["--subset", "5", "--dir_prob", "0.6", "--mixstyle_p", "0.4"]
+    base_args = ["--subset", "5", "--dir_prob", "0", "--mixstyle_p", "0.4"]
     
     # List of tuples containing checkpoint IDs and their corresponding experiment names
     ckpt_experiment_pairs = [
         # ("fskag87u", "NTU_KD_Var2b-T_DSIT-S_FMS_DIR_sub5_fixh5"), #DSIT
-        ("leguwmeg", "NTU_KD_Var2b-T_SIT-S_FMS_DIR_sub5_fixh5"),    #SIT FMS DIR
-        # ("dbl1yun4", "NTU_KD_Var2b-T_SIT-S_FMS_sub5_fixh5"),      #SIT FMS
+        # ("leguwmeg", "NTU_KD_Var2b-T_SIT-S_FMS_DIR_sub5_fixh5"),    #SIT FMS DIR
+        ("dbl1yun4", "NTU_KD_Var2b-T_SIT-S_FMS_sub5_fixh5"),      #SIT FMS
         # ("lm7o54or", "NTU_KD_Var2b-T_SeqFT-S_FMS_DIR_sub5_fixh5"),#SeqFT
         # ("f5hhbj59", "NTU_KD_Var2b-T_FTtau-S_FMS_DIR_sub5_fixh5"),#FTtau
-        (None, "NTU_KD_Var2b-T_PTas-S_FMS_DIR_sub5_fixh5")          #Ptau
+        # (None, "NTU_KD_Var2b-T_PTas-S_FMS_DIR_sub5_fixh5")          #Ptau
     ]
     
     # Number of times to repeat each experiment
