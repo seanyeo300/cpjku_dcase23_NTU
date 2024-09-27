@@ -488,13 +488,13 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_KD_Var1-T_SIT-S_FMS_sub5_fixh5") # This script is meant for pre-trained students
+    parser.add_argument('--experiment_name', type=str, default="NTU_KD_Var1-T_SIT-S_FMS_DIR_sub5_fixh5") # This script is meant for pre-trained students
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
-    parser.add_argument('--ckpt_id', type=str, required=False, default="dbl1yun4")  # for loading trained model, corresponds to wandb id
+    parser.add_argument('--ckpt_id', type=str, required=False, default="leguwmeg")  # for loading trained model, corresponds to wandb id
 
     # dataset
     # location to store resampled waveform
