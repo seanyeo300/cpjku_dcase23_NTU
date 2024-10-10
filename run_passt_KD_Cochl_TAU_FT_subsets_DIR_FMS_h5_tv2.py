@@ -101,7 +101,7 @@ class PLModule(pl.LightningModule):
         # Temperature adjusted probabilities of teacher and student
         with torch.cuda.amp.autocast():
             y_hat_soft = F.log_softmax(y_hat / self.config.temperature, dim=-1)
-            teacher_logits = F.log_softmax(teacher_logits / self.config.temperature, dim=-1)
+            teacher_logits = F.log_softmax(teacher_logits / self.config.temperature, dim=-1) 
         kd_loss = self.kl_div_loss(y_hat_soft, teacher_logits).mean()
         kd_loss = kd_loss * (self.config.temperature ** 2)
         loss = self.config.kd_lambda * label_loss + (1 - self.config.kd_lambda) * kd_loss

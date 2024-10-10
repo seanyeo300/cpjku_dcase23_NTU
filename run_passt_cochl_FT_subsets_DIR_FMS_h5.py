@@ -343,15 +343,20 @@ def train(config):
 
     # create pytorch lightening module
     # pl_module = PLModule(config) # this initializes the model pre-trained on audioset
-    ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
-    assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
-    #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
-    for file in os.listdir(ckpt_dir):
-        if "epoch" in file:
-            ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
-            print(f"found ckpt file: {file}")
-    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
-    pl_module = load_and_modify_checkpoint(pl_module, num_classes=10)
+    ckpt_id = None if config.ckpt_id == "None" else config.ckpt_id
+    if ckpt_id is not None:
+        ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
+        assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
+        #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
+        for file in os.listdir(ckpt_dir):
+            if "epoch" in file:
+                ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
+                print(f"found ckpt file: {file}")
+        pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+        pl_module = load_and_modify_checkpoint(pl_module, num_classes=10)
+    else:
+        config.n_classes=10
+        pl_module = PLModule(config) # this initializes the model pre-trained on audioset
     # get model complexity from nessi and log results to wandb
     # ATTENTION: this is before layer fusion, therefore the MACs and Params slightly deviate from what is
     # reported in the challenge submission

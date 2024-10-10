@@ -34,29 +34,30 @@ def run_multiple_scripts(script_name, base_args, ckpt_experiment_pairs, num_repe
 
 if __name__ == "__main__":
     # Define the script to run
-    script_name = 'run_passt_cochl_FT_subsets_DIR_FMS_h5.py'
-    # script_name = 'run_passt_cochl_tau_slowfast_subsets_DIR_FMS_h5.py'
+    # script_name = 'run_passt_cochl_FT_subsets_DIR_FMS_h5.py'
+    script_name = 'run_passt_cochl_tau_slowfast_subsets_DIR_FMS_h5.py'
     # Base arguments (common to all runs, except experiment name and ckpt_id)
-    base_args = ["--subset", "10", "--dir_prob", "0.6", "--mixstyle_p", "0.4"]
-    
+    base_args = ["--subset", "100", "--dir_prob", "0.6", "--mixstyle_p", "0.4", ] #"--timem" , "0" check which script you are running. If you want to use SL or FT, switch script as needed.
+     
     # List of tuples containing checkpoint IDs and their corresponding experiment names
     ckpt_experiment_pairs = [
 
-        ("utupypwc", "NTU_PaSST_FTcs_FTtau_wk50wxro_sub10_FMS_DIR_fixh5"),       #SeqFT 1e-4 
-        ("0r39k52v", "NTU_PaSST_FTcs_FTtau_qrrag30b_sub10_FMS_DIR_fixh5"),       #SeqFT 1e-5 
-        ("6ip7syrn", "NTU_PaSST_FTcs_FTtau_7qghtor2_sub10_FMS_DIR_fixh5"),       #SeqFT 1e-6
-        ("wk50wxro", "NTU_PaSST_SLcs_FTtau_wk50wxro_sub10_FMS_DIR_fixh5"),       #SL 1e-4 SIT
-        ("qrrag30b", "NTU_PaSST_SLcs_FTtau_qrrag30b_sub10_FMS_DIR_fixh5"),       #SL 1e-5 SIT
-        ("7qghtor2", "NTU_PaSST_SLcs_FTtau_7qghtor2_sub10_FMS_DIR_fixh5")        #SL 1e-6 SIT 
-        # ("wk50wxro", "NTU_PaSST_SLcs_SLtau_wk50wxro_sub10_FMS_DIR_fixh5"),       #SL 1e-4 DSIT (half complete, see
+        # ("utupypwc", "NTU_PaSST_FTcs_FTtau_wk50wxro_sub25_FMS_DIR_fixh5"),       #SeqFT 1e-4 
+        # ("0r39k52v", "NTU_PaSST_FTcs_FTtau_0r39k52v_sub25_FMS_DIR_fixh5"),          #SeqFT 1e-5 
+        # ("6ip7syrn", "NTU_PaSST_FTcs_FTtau_7qghtor2_sub25_FMS_DIR_fixh5"),       #SeqFT 1e-6
+        # ("wk50wxro", "NTU_PaSST_SLcs_FTtau_wk50wxro_sub25_FMS_DIR_fixh5"),       #SL 1e-4 SIT
+        # ("qrrag30b", "NTU_PaSST_SLcs_FTtau_qrrag30b_sub25_FMS_DIR_fixh5"),          #SL 1e-5 SIT
+        # ("7qghtor2", "NTU_PaSST_SLcs_FTtau_7qghtor2_sub25_FMS_DIR_fixh5")        #SL 1e-6 SIT 
+        ("wk50wxro", "NTU_PaSST_SLcs_SLtau_wk50wxro_sub100_FMS_DIR_fixh5"),       #SL 1e-4 DSIT (half complete, see
                                                                                    #NTU_passt_SLcs_SLtau_wk50wxro_sub10_FMS_DIR_PretrainedStudent_fixh5)
-        # ("qrrag30b", "NTU_PaSST_SLcs_SLtau_qrrag30b_sub10_FMS_DIR_fixh5"),       #SL 1e-5 DSIT
-        # ("7qghtor2", "NTU_PaSST_SLcs_SLtau_7qghtor2_sub10_FMS_DIR_fixh5")        #SL 1e-6 DSIT
+        # ("qrrag30b", "NTU_PaSST_SLcs_SLtau_qrrag30b_sub25_FMS_DIR_fixh5"),       #SL 1e-5 DSIT
+        # ("7qghtor2", "NTU_PaSST_SLcs_SLtau_7qghtor2_sub25_FMS_DIR_fixh5")        #SL 1e-6 DSIT
+        # (None, "NTU_PaSST_FTtau_sub100_FMS_DIR_fixh5")
 
     ] 
     
     # Number of times to repeat each experiment
-    num_repeats = 6
+    num_repeats = 1
 
     # Run the script with different checkpoint IDs and experiment names
     run_multiple_scripts(script_name, base_args, ckpt_experiment_pairs, num_repeats)

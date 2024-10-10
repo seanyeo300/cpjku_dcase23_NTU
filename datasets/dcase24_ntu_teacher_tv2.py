@@ -32,7 +32,7 @@ dataset_config = {
     # "logits_file": os.path.join("predictions","ensemble", "sub5_6_PaSST_var2_ensemble.pt") # for Var2
     
     # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_PASST_tv1.pt") # 
-    "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_model_tv2b.pt") # tv2 
+    "logits_file": os.path.join("predictions","ensemble", "sub10_ensemble_6_PaSST_tv2c.pt") # tv2c
     # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_6_model_tv3b.pt") # tv3 
     # "logits_file": os.path.join("predictions","ensemble", "sub5_ensemble_tv3.pt") # tv3
     
