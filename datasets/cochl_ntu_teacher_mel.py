@@ -24,8 +24,8 @@ dataset_config = {
     "meta_csv": os.path.join(dataset_dir, "meta.csv"), # may need to change this
     "split_path": "split_setup",
     "split_url": "https://github.com/CPJKU/dcase2024_task1_baseline/releases/download/files/",
-    "test_split_csv": "val_cochl10s.csv",
-    "cochl_test_split_csv": "test_cochl10s.csv",
+    "test_split_csv": "val_cochlOL.csv",
+    "cochl_test_split_csv": "test_cochlOL.csv",
     "dirs_path": os.path.join("dataset", "dirs"),
     "eval_dir": os.path.join(dataset_dir), 
     "eval_meta_csv": os.path.join(dataset_dir, "meta.csv"), # to get the full prediction list with index intact
@@ -316,8 +316,46 @@ class BasicDCASE24Dataseth5(TorchDataset):
     def __len__(self):
         return len(self.files)
     
+    
+class AdvancedCochlDataseth5(TorchDataset):
+    """
+    CochlScene Dataset with subset of classes: loads mel data from files.
+    """
+
+    def __init__(self, meta_csv, hf_in):
+        """
+        @param meta_csv: meta csv file for the dataset
+        @param hf_in: HDF5 file handler for reading mel spectrograms
+        """
+        # Load metadata from CSV
+        df = pd.read_csv(meta_csv, sep="\t")
+        print(f"Total rows in meta_csv: {len(df)}")
+
+        # Store raw labels, devices, cities, and file names
+        self.labels = df[['scene_label']].values.reshape(-1)
+        self.devices = df[['source_label']].values.reshape(-1)
+        self.cities = df['identifier'].apply(lambda loc: loc.split("-")[0]).values.reshape(-1)
+        self.files = df[['filename']].values.reshape(-1)
+
+        # HDF5 handler
+        self.hf_in = hf_in
+        print(f"Total files: {len(self.files)}")
+
+    def __getitem__(self, index):
+        # Retrieve the spectrogram from HDF5 by filename (stripping prefix and extension)
+        mel_sig_ds = self.files[index][5:-4]
+        sig = torch.from_numpy(self.hf_in.get(mel_sig_ds)[()])
+
+        # Return raw values, leaving encoding to an external function
+        return sig, self.files[index], self.labels[index], self.devices[index], self.cities[index]
+
+    def __len__(self):
+        return len(self.files)
+
+    
+    
 def ntu_get_training_set_dir(split=100, dir_prob = False, hf_in=None, hmic_in=None): # this variant is for DIR augmentation
-    assert str(split) in ("5", "10", "25", "50", "100","cochl10s", "cochl1s"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
+    assert str(split) in ("5", "10", "25", "50", "100","cochl10s", "cochl1s", "cochlsub10"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
     os.makedirs(dataset_config['split_path'], exist_ok=True)
     subset_fname = f"split{split}.csv"
     subset_split_file = os.path.join(dataset_config['split_path'], subset_fname)
@@ -343,6 +381,127 @@ def ntu_get_base_training_set(meta_csv, train_files_csv, hf_in): # this variant 
     ds = SimpleSelectionDataset(BasicDCASE24Dataseth5(meta_csv, hf_in),
                                 train_subset_indices)
     # ds = AddLogitsDataset(ds, train_subset_indices, dataset_config['logits_file'])
+    return ds
+
+def ntu_cochl_subset_dir(split=None, dir_prob = False, hf_in=None, hmic_in=None): # this variant is for DIR augmentation
+    assert str(split) in ("cochlsub10", "cochlNoOLsub10", "cochlOLsub10"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
+    os.makedirs(dataset_config['split_path'], exist_ok=True)
+    subset_fname = f"split{split}.csv"
+    subset_split_file = os.path.join(dataset_config['split_path'], subset_fname)
+    
+    if not os.path.isfile(subset_split_file):
+        # download split{x}.csv (file containing all audio snippets for respective development-train split)
+        subset_csv_url = dataset_config['split_url'] + subset_fname
+        print(f"Downloading file: {subset_fname}")
+        download_url_to_file(subset_csv_url, subset_split_file)
+    ds = ntu_cochl_training_set(dataset_config['meta_csv'], subset_split_file, hf_in)
+    print(f"Base training set size: {len(ds)}")
+    if dir_prob:
+        ds = DirDataset(ds, hmic_in, dir_prob)
+    return ds
+
+
+def ntu_cochl_training_set(meta_csv, train_files_csv, hf_in): # this variant does not use DIR augmentation
+    # Load the metadata CSV
+    meta = pd.read_csv(meta_csv, sep="\t")
+    print("Reading meta data")
+
+    # Read the subset CSV file containing only the filenames for training
+    train_files = pd.read_csv(train_files_csv, sep='\t')['filename'].values.reshape(-1)
+    train_subset = meta[meta['filename'].isin(train_files)]
+
+    # Obtain subset indices
+    train_subset_indices = list(train_subset.index)
+    print("Obtaining train indices")
+
+    # Initialize the BasicDCASE24Dataseth5 with raw labels
+    base_dataset = AdvancedCochlDataseth5(meta_csv, hf_in)
+
+    # Encode labels after filtering using the subset of files
+    le = preprocessing.LabelEncoder()
+    encoded_labels = torch.from_numpy(le.fit_transform(train_subset['scene_label'].values))
+    
+    # Map encoded labels back to `SimpleSelectionDataset`
+    base_dataset.labels[train_subset_indices] = encoded_labels
+
+    # Create a SimpleSelectionDataset with the filtered and encoded subset
+    ds = SimpleSelectionDataset(base_dataset, train_subset_indices)
+
+    return ds
+
+def ntu_cochl_val_set(hf_in = None):
+    os.makedirs(dataset_config['split_path'], exist_ok=True)
+    test_split_csv = os.path.join(dataset_config['split_path'], dataset_config['test_split_csv'])
+    if not os.path.isfile(test_split_csv):
+        # download test.csv (file containing all audio snippets for development-test split)
+        test_csv_url = dataset_config['split_url'] + dataset_config['test_split_csv']
+        print(f"Downloading file: {dataset_config['test_split_csv']}")
+        download_url_to_file(test_csv_url, test_split_csv)
+    ds = ntu_get_cochl_val_set(dataset_config['meta_csv'], test_split_csv, hf_in)
+    return ds
+
+def ntu_get_cochl_val_set(meta_csv, test_files_csv, hf_in):
+    # Load the metadata CSV
+    meta = pd.read_csv(meta_csv, sep="\t")
+    print("Reading meta data")
+
+    # Read the subset CSV file containing only the filenames for training
+    test_files = pd.read_csv(test_files_csv, sep='\t')['filename'].values.reshape(-1)
+    test_subset = meta[meta['filename'].isin(test_files)]
+
+    # Obtain subset indices
+    test_subset_indices = list(test_subset.index)
+    print("Obtaining train indices")
+
+    # Initialize the BasicDCASE24Dataseth5 with raw labels
+    base_dataset = AdvancedCochlDataseth5(meta_csv, hf_in)
+
+    # Encode labels after filtering using the subset of files
+    le = preprocessing.LabelEncoder()
+    encoded_labels = torch.from_numpy(le.fit_transform(test_subset['scene_label'].values))
+    
+    # Map encoded labels back to `SimpleSelectionDataset`
+    base_dataset.labels[test_subset_indices] = encoded_labels
+
+    # Create a SimpleSelectionDataset with the filtered and encoded subset
+    ds = SimpleSelectionDataset(base_dataset, test_subset_indices)
+    return ds
+
+def ntu_get_test_subset_cochl(hf_in = None):
+    os.makedirs(dataset_config['split_path'], exist_ok=True)
+    test_split_csv = os.path.join(dataset_config['split_path'], dataset_config['cochl_test_split_csv'])
+    if not os.path.isfile(test_split_csv):
+        # download test.csv (file containing all audio snippets for development-test split)
+        test_csv_url = dataset_config['split_url'] + dataset_config['cochl_test_split_csv']
+        print(f"Downloading file: {dataset_config['cochl_test_split_csv']}")
+        download_url_to_file(test_csv_url, test_split_csv)
+    ds = ntu_get_cochl_test_subset(dataset_config['meta_csv'], test_split_csv, hf_in)
+    return ds
+
+def ntu_get_cochl_test_subset(meta_csv, test_files_csv, hf_in):
+    # Load the metadata CSV
+    meta = pd.read_csv(meta_csv, sep="\t")
+    print("Reading meta data")
+    # Read the subset CSV file containing only the filenames for training
+    test_files = pd.read_csv(test_files_csv, sep='\t')['filename'].values.reshape(-1)
+    test_subset = meta[meta['filename'].isin(test_files)]
+
+    # Obtain subset indices
+    test_subset_indices = list(test_subset.index)
+    print("Obtaining train indices")
+
+    # Initialize the BasicDCASE24Dataseth5 with raw labels
+    base_dataset = AdvancedCochlDataseth5(meta_csv, hf_in)
+
+    # Encode labels after filtering using the subset of files
+    le = preprocessing.LabelEncoder()
+    encoded_labels = torch.from_numpy(le.fit_transform(test_subset['scene_label'].values))
+    
+    # Map encoded labels back to `SimpleSelectionDataset`
+    base_dataset.labels[test_subset_indices] = encoded_labels
+
+    # Create a SimpleSelectionDataset with the filtered and encoded subset
+    ds = SimpleSelectionDataset(base_dataset, test_subset_indices)
     return ds
 
 def ntu_get_test_set(hf_in = None):
