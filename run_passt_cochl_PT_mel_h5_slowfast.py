@@ -16,7 +16,7 @@ from models.passt import get_model
 from models.mel import AugmentMelSTFT
 from helpers import nessi
 # from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
-from datasets.cochl_ntu_teacher_mel import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_test_set_cochl, ntu_get_eval_set, open_h5, close_h5
+from datasets.cochl_ntu_teacher_mel import ntu_get_training_set_dir, ntu_get_test_set, ntu_get_test_set_cochl, ntu_get_eval_set, open_h5, close_h5,ntu_cochl_subset_dir, ntu_cochl_val_set, ntu_get_test_subset_cochl
 from helpers.utils import mixstyle, mixup_data
 import json
 
@@ -56,8 +56,10 @@ class PLModule(pl.LightningModule):
         # self.device_ids = ['a', 'b', 'c', 's1', 's2', 's3', 's4', 's5', 's6']
         # self.label_ids = ['airport', 'bus', 'metro', 'metro_station', 'park', 'public_square', 'shopping_mall',
         #                   'street_pedestrian', 'street_traffic', 'tram']
-        self.label_ids = ['Bus', 'Cafe', 'Car', 'CrowdedIndoor', 'Elevator', 'Kitchen',
-                          'Park', 'ResidentialArea', 'Restaurant', 'Restroom', 'Street','SubwayStation', 'Subway']
+        self.label_ids = ['Bus', 'Cafe', 'Car', 'CrowdedIndoor', 'Elevator', 'Kitchen','Park', 'ResidentialArea', 'Restaurant', 'Restroom', 'Street','SubwayStation', 'Subway']
+        # ['Bus', 'Cafe', 'Car', 'CrowdedIndoor', 'Elevator', 'Kitchen','Park', 'ResidentialArea', 'Restaurant', 'Restroom', 'Street','SubwayStation', 'Subway']
+        # 
+        # ['Bus', 'Park', 'Street','SubwayStation', 'Subway']
         # self.device_groups = {'a': "real", 'b': "real", 'c': "real",
         #                       's1': "seen", 's2': "seen", 's3': "seen",
         #                       's4': "unseen", 's5': "unseen", 's6': "unseen"}
@@ -135,7 +137,7 @@ class PLModule(pl.LightningModule):
         #     for i, d in enumerate(devices):
         #         results["devloss." + d] = results["devloss." + d] + samples_loss[i]
         #         results["devcnt." + d] = results["devcnt." + d] + 1.
-        print(f"Training Loss = {loss}")
+        # print(f"Training Loss = {loss}")
         return results
 
     def training_epoch_end(self, outputs):
@@ -351,23 +353,23 @@ def train(config):
     
     # get_training set already has logic to handle dir_prob=0
     
-    train_dataset = ntu_get_training_set_dir(config.subset, config.dir_prob, hf_in, hmic_in)
-    print(f"Dataset length before DataLoader: {len(train_dataset)}")
-    assert len(train_dataset) > 0, "The dataset is empty!"
-    train_dl = DataLoader(dataset=ntu_get_training_set_dir(config.subset, config.dir_prob, hf_in, hmic_in),
+    # train_dataset = ntu_get_training_set_dir(config.subset, config.dir_prob, hf_in, hmic_in)
+    # print(f"Dataset length before DataLoader: {len(train_dataset)}")
+    # assert len(train_dataset) > 0, "The dataset is empty!"
+    train_dl = DataLoader(dataset=ntu_cochl_subset_dir(config.subset, config.dir_prob, hf_in, hmic_in),
                           worker_init_fn=worker_init_fn,
                           num_workers=config.num_workers,
                           batch_size=config.batch_size,
                           
                           shuffle=True)
     
-    val_dl = DataLoader(dataset=ntu_get_test_set(hf_in),
+    val_dl = DataLoader(dataset=ntu_cochl_val_set(hf_in),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size,
                          pin_memory=True,
                          )
-    test_dl = DataLoader(dataset=ntu_get_test_set_cochl(hf_in),
+    test_dl = DataLoader(dataset=ntu_get_test_subset_cochl(hf_in),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size,
@@ -404,7 +406,7 @@ def train(config):
     trainer = pl.Trainer(max_epochs=config.n_epochs,
                          logger=wandb_logger,
                          accelerator='gpu',
-                         devices=1,
+                         devices=eval(config.gpu),
                          callbacks=[lr_monitor, checkpoint_callback])
     # start training and validation for the specified number of epochs
     trainer.fit(pl_module, train_dl, val_dl)
@@ -450,7 +452,7 @@ def evaluate(config):
     pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
     trainer = pl.Trainer(logger=False,
                          accelerator='gpu',
-                         devices=[0],
+                         devices=eval(config.gpu),
                          precision=config.precision)
     ############# h5 edit here ##############
     # evaluate lightning module on development-test split
@@ -522,10 +524,10 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_cochl_slow_fast_FGlr_1e-4_h5")
+    parser.add_argument('--experiment_name', type=str, default="CPJKU_passt_cochl_sub10_slow_fast_FGlr_1e-5_h5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
-    
+    parser.add_argument('--gpu',type=str,default='[0]')
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
     parser.add_argument('--ckpt_id', type=str, default=None)  # for loading trained model, corresponds to wandb id
@@ -533,7 +535,7 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', default="cochl10s")
+    parser.add_argument('--subset', default="cochlsub10") # cochlsub10, "cochlOLsub10", cochlNoOLsub10
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=13)  # classification model with 'n_classes' output neurons
@@ -556,7 +558,7 @@ if __name__ == '__main__':
     #  2. constant lr phase using value specified in 'lr' (for 'ramp_down_start' - 'warm_up_len' epochs)
     #  3. linearly decreasing to value 'las_lr_value' * 'lr' (for 'ramp_down_len' epochs)
     #  4. finetuning phase using a learning rate of 'last_lr_value' * 'lr' (for the rest of epochs up to 'n_epochs')
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=1e-5)
     parser.add_argument('--warm_up_len', type=int, default=3)
     parser.add_argument('--ramp_down_start', type=int, default=3)
     parser.add_argument('--ramp_down_len', type=int, default=10)
