@@ -9,17 +9,17 @@ def run_multiple_scripts(scripts_with_args):
         print(f"An error occurred: {e}")
 
 if __name__ == "__main__":
-    # Example: Replace these with your actual script names and arguments
+    # Example: Replace these with your actual script names and arguments 50+100%
+    
     scripts_to_run = [
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'yoknz8lp']),
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 't269df7z']),
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'ppsps225']),
-        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'ni0acxe5']),
-        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'u41rqatk']),
-        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 't2b9axjm']),
+        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', '8gpctett']),
+        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'kgh56uev']),
+        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'no72vxvm']),
+        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'emvp0ahe']),
+        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'rndo9pmo']),
+        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'vmpdce38']),
     ]
     run_multiple_scripts(scripts_to_run)
-    
 # 5% FMS only 
 # ["dbl1yun4", "brcaxnko", "z0xsdw9o", "59z6lxjj", "6ehbfn9i", "vj86j26r"]
 # 5% DSIT FMS,DIR
@@ -46,9 +46,9 @@ if __name__ == "__main__":
 # tv1b
 ["s2rf9v2j", "55osep77", "bmfe7xg7", "zg9dcrr3", "w5muk32o","axgvrvk1"]
 #tv2c
-["s2rf9v2j", "55osep77", "bmfe7xg7", "n5ntbunr", "5u2cths8", "7xljnu1s"]
+["s2rf9v2j", "55osep77", "bmfe7xg7", "me35cqrb", "gvdbvn5e","no72vxvm"]
 # tv3
-["n5ntbunr", "5u2cths8","7xljnu1s", "pg5hyo9n" ,"rg4ac22e", "9hfek157"]
+["me35cqrb", "gvdbvn5e","no72vxvm", "emvp0ahe" ,"rndo9pmo", "vmpdce38"]
 
 #50%
 # # tv1
@@ -58,17 +58,17 @@ if __name__ == "__main__":
 # tv1b
 ["fzcw72bp","hy0mzx6z","1nqhp83v","q8rxd8a3","hxpe9ycz","403jqv4g"]
 # tv2c
-["fzcw72bp","hy0mzx6z","1nqhp83v","kzi3j8i9","bn9vp2m4","jhjnxe4z"]
+["fzcw72bp","hy0mzx6z","1nqhp83v","jpuww899","bneij1tp","bu9ogmxo"]
 # tv3
-["kzi3j8i9", "bn9vp2m4", "jhjnxe4z","sbgt0r1z", "nvv63vz9", "cwsmiys6"]
+["jpuww899", "bneij1tp", "bu9ogmxo","15cmvyi2", "ejso4chn", "m70acb6q"]
 
 #100%
 # tv1b
 ["um60xoby","5glbzaab","r3etgxpp","gnwkrjpe","8jnf4ele","kcazd8oh"]
 # tv2c
-["um60xoby","5glbzaab","r3etgxpp","n3xsexru","0nywuaz8","vpwa3xxl"]
+["um60xoby","5glbzaab","r3etgxpp","qupf3zrc","e45ivt1f","1sevgzul"]
 # tv3
-["n3xsexru","0nywuaz8","vpwa3xxl","ni0acxe5","u41rqatk","t2b9axjm"]
+["qupf3zrc","e45ivt1f","1sevgzul","a0dnfaoh","pghlf5fv","rcze3lr8"]
 
 
 #10%

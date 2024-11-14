@@ -39,7 +39,7 @@ if __name__ == "__main__":
     # script_name = 'run_passt_cochl_PT_FT_tau_subsets_h5.py'
     # script_name = 'run_training_DynMN_h5_PL.py'
     # Base arguments (common to all runs, except experiment name and ckpt_id)
-    base_args = ['--gpu','[0]',"--subset", "50", "--dir_prob", "0.6", "--mixstyle_p", "0.4","--n_epochs", "25","--n_classes","13"]
+    base_args = ['--gpu','[1]',"--subset", "5", "--dir_prob", "0.6", "--mixstyle_p", "0.4","--n_epochs", "25","--n_classes","5","--lr","5e-4"]
     
     # List of tuples containing checkpoint IDs and their corresponding experiment names
     ckpt_experiment_pairs = [
@@ -57,14 +57,15 @@ if __name__ == "__main__":
         # ("g1gzf3te", "NTU_PaSST_SLcsOL_SLtau_g1gzf3te_sub5_FMS_DIR_50epoch_fixh5"),       #SL 1e-4 DSIT
         # ("v7q0fght", "NTU_PaSST_SLcsOL_SLtau_v7q0fght_sub5_FMS_DIR_fixh5"),
         # ("j98ea5ub", "NTU_PaSST_SLcsNoOL_SLtau_j98ea5ub_sub5_FMS_DIR_fixh5"),       #SL 1e-4 DSIT 
-        ("nmioakwl", "NTU_PaSST_SLcs_sub10_SLtau_nmioakwl_sub50_FMS_DIR_fixh5"),       #SL 1e-4 DSIT 
-        
+        # ("nmioakwl", "NTU_PaSST_SLcs_sub10_SLtau_nmioakwl_sub50_FMS_DIR_fixh5"),       #SL 1e-4 DSIT 
+        # ("bdooa7vw", "NTU_PaSST_SLcsOL_sub100_SLtau_bdooa7vw_sub5_FMS_DIR_fixh5"),       #SL 1e-4 DSIT
+        ("fjcq1094","NTU_PaSST_SLcsOL_sub100_SLtau_fjcq1094_5e-4_sub5_FMS_DIR_fixh5")         #SL 1e-5,1e-4 DSIT
         # (None, "tMN30_FTtau_32K_FMS_DIR_sub5_fixh5")                       #FTtau_noASpt 
 
     ] 
     
     # Number of times to repeat each experiment
-    num_repeats = 1
+    num_repeats = 6
 
     # Run the script with different checkpoint IDs and experiment names
     run_multiple_scripts(script_name, base_args, ckpt_experiment_pairs, num_repeats)

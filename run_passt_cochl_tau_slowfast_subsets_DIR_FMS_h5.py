@@ -500,18 +500,18 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_SLcs_SLtau_wk50wxro_sub5_FMS_DIR_PretrainedStudent_fixh5")
+    parser.add_argument('--experiment_name', type=str, default="NTU_passt_SLcs10_in_SLtau_g1gzf3te_sub50_FMS_DIR_5e-5_fixh5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
-    parser.add_argument('--gpu',type=str,default='[0]')
+    parser.add_argument('--gpu',type=str,default='[1]')
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
-    parser.add_argument('--ckpt_id', type=str, default='wk50wxro')  # for loading trained model, corresponds to wandb id
+    parser.add_argument('--ckpt_id', type=str, default='g1gzf3te')  # for loading trained model, corresponds to wandb id
 
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=10)
+    parser.add_argument('--subset', type=int, default=50)
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=5)  # classification model with 'n_classes' output neurons
@@ -534,7 +534,7 @@ if __name__ == '__main__':
     #  2. constant lr phase using value specified in 'lr' (for 'ramp_down_start' - 'warm_up_len' epochs)
     #  3. linearly decreasing to value 'las_lr_value' * 'lr' (for 'ramp_down_len' epochs)
     #  4. finetuning phase using a learning rate of 'last_lr_value' * 'lr' (for the rest of epochs up to 'n_epochs')
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=5e-5)  # default = 1e-4
     parser.add_argument('--warm_up_len', type=int, default=3)
     parser.add_argument('--ramp_down_start', type=int, default=3)
     parser.add_argument('--ramp_down_len', type=int, default=10)

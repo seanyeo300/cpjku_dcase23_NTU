@@ -70,11 +70,16 @@ class PLModule(pl.LightningModule):
         self.test_step_outputs = []
         self.aug_smooth=config.aug_smooth
         
-    def reshape_transform(tensor, height=16, width=16):
-        result = tensor[:, 1:, :].reshape(tensor.size(0), height, width, tensor.size(2))
-
-        # Bring the channels to the first dimension,
-        # like in CNNs.
+    def reshape_transform(self,tensor, height=16, width=16):
+        print(f"reshapping a tensor of size: {tensor.shape}")
+        # Remove both class token and distillation token
+        tensor = tensor[:, 2:, :]  # Exclude the first two tokens (cls and dist)
+        
+        # Define the reshaping dimensions based on 108 remaining tokens
+        height, width = 12, 9
+        result = tensor.reshape(tensor.size(0), height, width, tensor.size(2))
+        
+        # Transpose to make it [Batch, Channels, Height, Width]
         result = result.transpose(2, 3).transpose(1, 2)
         return result
     
@@ -189,7 +194,7 @@ class PLModule(pl.LightningModule):
                 with torch.enable_grad():
                     x = self.mel_forward(x)
                     x.requires_grad_()  # Enable gradients for GradCAM
-                    print(f"{x.shape}\n")
+                    # print(f"{x.shape}\n")
                     # Define target layer and initialize selected CAM method
                     target_layer = self.model.blocks[-1].norm1
                     print(f"Obtained target layer: {target_layer} \n")
@@ -197,7 +202,7 @@ class PLModule(pl.LightningModule):
                         cam = HiResCAM(model=self.model, target_layers=[target_layer], use_cuda=True) #reshape_transform=self.reshape_transform,
                     elif cam_method_name == "GradCAM":
                         print(f"getting GradCAM... \n")
-                        cam = GradCAMTrans(model=self.model, target_layers=[target_layer], use_cuda=True)
+                        cam = GradCAM(model=self.model, target_layers=[target_layer],reshape_transform=self.reshape_transform, use_cuda=True)
                         print(f"Passed getting GradCam \n")
                     elif cam_method_name == "GradCAMPlusPlus":
                         cam = GradCAMPlusPlus(model=self.model, target_layers=[target_layer], use_cuda=True)

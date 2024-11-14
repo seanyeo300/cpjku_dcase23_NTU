@@ -384,7 +384,7 @@ def ntu_get_base_training_set(meta_csv, train_files_csv, hf_in): # this variant 
     return ds
 
 def ntu_cochl_subset_dir(split=None, dir_prob = False, hf_in=None, hmic_in=None): # this variant is for DIR augmentation
-    assert str(split) in ("cochlsub10", "cochlNoOLsub10", "cochlOLsub10"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
+    assert str(split) in ("cochlsub10", "cochlNoOLsub10", "cochlOLsub10","cochlOLsub100"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
     os.makedirs(dataset_config['split_path'], exist_ok=True)
     subset_fname = f"split{split}.csv"
     subset_split_file = os.path.join(dataset_config['split_path'], subset_fname)
