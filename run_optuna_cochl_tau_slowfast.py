@@ -35,31 +35,31 @@ def load_and_modify_checkpoint(pl_module, num_classes=10):
 def objective(trial):
     # Suggest temperature and KD_lambda hyperparameters for this trial
     # temperature = trial.suggest_float('temperature', 1.0,4.0)  # temperature scaling for KD
-    lr = trial.suggest_float('lr', 1e-5, 1e-4)  # FG learning rate range
+    lr = trial.suggest_float('lr', 1e-5, 5e-5)  # FG learning rate range
 
     # Update the config with Optuna-suggested hyperparameters
     config = argparse.Namespace(
-        project_name="NTU24_ASC",
-        experiment_name="Optuna_SIT_TAU_Stage_lr_Trial_" + str(trial.number),
+        project_name="Optuna_KD",
+        experiment_name="Optuna_SLcs10_in_SLtau_sub10_lr_Trial_" + str(trial.number),
         num_workers=0,
-        gpu="[1]",
+        gpu="[0]",
         precision="32",
         evaluate=False,
-        ckpt_id="23aynyd1",
+        ckpt_id="g1gzf3te", #g1gzf3te, fjcq1094
         orig_sample_rate=44100,
-        subset="5",
+        subset="10",
         n_classes=5,
         arch='passt_s_swa_p16_128_ap476',
         input_fdim=128,
         s_patchout_f=6,
         s_patchout_t=0,
         n_epochs=25,
-        batch_size=256,
+        batch_size=80,
         mixstyle_p=0.4,
         mixstyle_alpha=0.4,
         weight_decay=0.001,
         roll_sec=4000,
-        dir_prob=0,
+        dir_prob=0.6,
         lr=lr,
         warm_up_len=3,
         ramp_down_start=3,
@@ -488,7 +488,7 @@ class PLModule(pl.LightningModule):
     
 if __name__ == '__main__':
     study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=25)
+    study.optimize(objective, n_trials=6)
 
     print("Best trial:")
     print("  Value:", study.best_trial.value)

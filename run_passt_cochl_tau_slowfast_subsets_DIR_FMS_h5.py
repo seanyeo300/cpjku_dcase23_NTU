@@ -511,7 +511,7 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=int, default=50)
+    parser.add_argument('--subset', type=str, default="50")
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
     parser.add_argument('--n_classes', type=int, default=5)  # classification model with 'n_classes' output neurons

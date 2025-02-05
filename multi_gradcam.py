@@ -84,15 +84,15 @@ if __name__ == "__main__":
     scripts_to_run = [
         # ('run_passt_KD_Cochl_TAU_FT_subsets_DIR_FMS_h5_multirun_copy.py', [ "--subset", "5", "--dir_prob", "0.6","--ckpt_id", "fskag87u", "--experiment_name", "NTU_KD_Var3b-T_DSIT-S_FMS_DIR_sub5_fixh5"]),
         # ('run_passt_KD_Cochl_TAU_FT_subsets_DIR_FMS_h5_multirun_copy.py', [ "--subset", "5", "--dir_prob", "0.6","--ckpt_id", "fskag87u", "--experiment_name", "NTU_KD_Var3b-T_DSIT-S_FMS_DIR_sub5_fixh5"]),
-        ('run_gradcam.py', [ "--Cam_index", "0"    , "--ckpt_id", "fskag87u"]),
-        ('run_gradcam.py', [ "--Cam_index", "2960" , "--ckpt_id", "fskag87u"]),
-        ('run_gradcam.py', [ "--Cam_index", "5930" , "--ckpt_id", "fskag87u"]),
-        ('run_gradcam.py', [ "--Cam_index", "8900" , "--ckpt_id", "fskag87u"]),
-        ('run_gradcam.py', [ "--Cam_index", "11870", "--ckpt_id", "fskag87u"]),
-        ('run_gradcam.py', [ "--Cam_index", "14840", "--ckpt_id", "fskag87u"]),
-        ('run_gradcam.py', [ "--Cam_index", "17810", "--ckpt_id", "fskag87u"]),
-        ('run_gradcam.py', [ "--Cam_index", "20780", "--ckpt_id", "fskag87u"]),
-        ('run_gradcam.py', [ "--Cam_index", "23750", "--ckpt_id", "fskag87u"]),
-        ('run_gradcam.py', [ "--Cam_index", "26720", "--ckpt_id", "fskag87u"])
+        ('run_activation_maps.py', [ "--project_name","NTU24_ASC","--target_class", "airport"           , "--ckpt_id", "jiw5bohu"]),
+        ('run_activation_maps.py', [ "--project_name","NTU24_ASC","--target_class", "bus"               , "--ckpt_id", "jiw5bohu"]),
+        ('run_activation_maps.py', [ "--project_name","NTU24_ASC","--target_class", "metro"             , "--ckpt_id", "jiw5bohu"]),
+        ('run_activation_maps.py', [ "--project_name","NTU24_ASC","--target_class", "metro_station"     , "--ckpt_id", "jiw5bohu"]),
+        ('run_activation_maps.py', [ "--project_name","NTU24_ASC","--target_class", "park"              , "--ckpt_id", "jiw5bohu"]),
+        ('run_activation_maps.py', [ "--project_name","NTU24_ASC","--target_class", "public_square"     , "--ckpt_id", "jiw5bohu"]),
+        ('run_activation_maps.py', [ "--project_name","NTU24_ASC","--target_class", "shopping_mall"     , "--ckpt_id", "jiw5bohu"]),
+        ('run_activation_maps.py', [ "--project_name","NTU24_ASC","--target_class", "street_pedestrian" , "--ckpt_id", "jiw5bohu"]),
+        ('run_activation_maps.py', [ "--project_name","NTU24_ASC","--target_class", "street_traffic"    , "--ckpt_id", "jiw5bohu"]),
+        ('run_activation_maps.py', [ "--project_name","NTU24_ASC","--target_class", "tram"              , "--ckpt_id", "jiw5bohu"])
     ]
     run_multiple_scripts(scripts_to_run)

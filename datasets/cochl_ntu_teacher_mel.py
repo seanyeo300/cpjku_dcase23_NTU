@@ -404,7 +404,7 @@ def ntu_cochl_subset_dir(split=None, dir_prob = False, hf_in=None, hmic_in=None)
 def ntu_cochl_training_set(meta_csv, train_files_csv, hf_in): # this variant does not use DIR augmentation
     # Load the metadata CSV
     meta = pd.read_csv(meta_csv, sep="\t")
-    print("Reading meta data")
+    # print("Reading meta data")
 
     # Read the subset CSV file containing only the filenames for training
     train_files = pd.read_csv(train_files_csv, sep='\t')['filename'].values.reshape(-1)

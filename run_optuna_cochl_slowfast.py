@@ -38,7 +38,7 @@ def objective(trial):
 
     # Update the config with Optuna-suggested hyperparameters
     config = argparse.Namespace(
-        project_name="NTU24_ASC",
+        project_name="Optuna_KD",
         experiment_name="Optuna_SIT_FG_lr_Trial_" + str(trial.number),
         num_workers=0,
         gpu="[0]",

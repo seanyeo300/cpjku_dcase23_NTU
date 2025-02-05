@@ -12,8 +12,8 @@ if __name__ == "__main__":
     # Example: Replace these with your actual script names and arguments 50+100%
     
     scripts_to_run = [
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', '8gpctett']),
-        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'kgh56uev']),
+        ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'spvyg1by']),
+        # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 't4uhok6p']),
         # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'no72vxvm']),
         # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'emvp0ahe']),
         # ('run_passt_training_subsets_DIR_FMS_h5.py', ['--project_name',"NTU24_ASC",'--evaluate', '--ckpt_id', 'rndo9pmo']),
