@@ -37,3 +37,4 @@ cams/fskag87u_GradCAM/street_pedestrian_activation_maps.pt
 cams/fskag87u_GradCAM/street_traffic_activation_maps.pt
 cams/fskag87u_GradCAM/tram_activation_maps.pt
 cams/jiw5bohu_GradCAM/airport/airport_activation_maps.pt
+cams/jiw5bohu_GradCAM/shopping_mall_activation_maps.pt
