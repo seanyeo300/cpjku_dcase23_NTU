@@ -394,7 +394,7 @@ def ntu_get_base_training_set(meta_csv, train_files_csv, hf_in): # this variant 
     return ds
 
 def ntu_get_sub_training_set_dir(split=100, dir_prob = False, hf_in=None, hmic_in=None): # this variant is for DIR augmentation
-    assert str(split) in ("5", "10", "25", "50", "100", "7", "17","sub5","sub8","tau5OL","25OL5","25sub5","25sub8", "5sub5C","5sub8B","5sub5D","5sub5E","5sub3"), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
+    assert str(split) in ("5", "10", "25", "50", "100", "7", "17","sub5","sub8","tau5OL","25OL5","25sub5","25sub8", "5sub5C","5sub8B","5sub5D","5sub5E","5sub3" ), "Parameters 'split' must be in [5, 10, 25, 50, 100]"
     os.makedirs(dataset_config['split_path'], exist_ok=True)
     subset_fname = f"split{split}.csv"
     subset_split_file = os.path.join(dataset_config['split_path'], subset_fname)
