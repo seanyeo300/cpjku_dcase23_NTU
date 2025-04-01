@@ -309,7 +309,7 @@ def get_base_eval_set(meta_csv, eval_dir):
 
 class BasicDCASE24Dataseth5(TorchDataset):
     """
-    Basic DCASE'24 Dataset: loads mel data from files
+    Basic DCASE'24 Dataset: loads wav data from h5 files
     """
 
     def __init__(self, meta_csv, hf_in):

@@ -48,3 +48,5 @@ cams/jiw5bohu_GradCAM/public_square_activation_maps.pt
 cams/jiw5bohu_GradCAM/street_pedestrian_activation_maps.pt
 cams/jiw5bohu_GradCAM/street_traffic_activation_maps.pt
 cams/jiw5bohu_GradCAM/tram_activation_maps.pt
+AudioMAE/pretrained.pth
+NTU24_PANNs/pre-trained/Wavegram_Logmel_Cnn14_mAP_0.439.pth
