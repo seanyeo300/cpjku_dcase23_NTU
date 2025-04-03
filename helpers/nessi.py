@@ -18,3 +18,5 @@ def get_model_size(model, input_size):
         input_size=input_size
     )
     return model_profile.total_mult_adds, model_profile.total_params
+
+from functools import partial
