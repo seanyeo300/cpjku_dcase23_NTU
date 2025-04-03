@@ -7,11 +7,12 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 import argparse
 import os
 import torch.nn as nn
+import pathlib
 
 from torch.autograd import Variable
 from helpers.lr_schedule import exp_warmup_linear_down
 from helpers.init import worker_init_fn
-from models.MAE import MaskedAutoencoderViT
+from models import mae
 from models.mel import AugmentMelSTFT
 from helpers import nessi
 # from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
@@ -25,7 +26,7 @@ torch.set_float32_matmul_precision("highest")
 
 def load_and_modify_checkpoint(pl_module, num_classes=10):
     # Modify the final layer
-    pl_module.model.fc_audioset = nn.Linear(2048, num_classes, bias=True)
+    pl_module.model.decoder = nn.Linear(2048, num_classes, bias=True)
     
     return pl_module
 
@@ -48,8 +49,10 @@ class PLModule(pl.LightningModule):
                                   fmax_aug_range=config.fmax_aug_range
                                   )
 
-        self.model = MaskedAutoencoderViT()
-
+        # self.model = MaskedAutoencoderViT(patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, 
+        # norm_layer=partial(nn.LayerNorm, eps=1e-6),classification=True, audio_exp=True,img_size=(1024,128), decoder_mode=0, in_chans=1)
+        self.arch = 'mae_vit_base_patch16'
+        self.model = getattr(mae, self.arch)(in_chans=1, audio_exp=True,img_size=(1024,128),decoder_mode=1, decoder_depth = 16, classification=True)
         self.device_ids = ['a', 'b', 'c', 's1', 's2', 's3', 's4', 's5', 's6']
         self.label_ids = ['airport', 'bus', 'metro', 'metro_station', 'park', 'public_square', 'shopping_mall',
                           'street_pedestrian', 'street_traffic', 'tram']
@@ -280,7 +283,7 @@ def train(config):
         config=config,  # this logs all hyperparameters for us
         name=config.experiment_name
     )
-    ckpt_file =r"D:\Sean\github\cpjku_dcase23_NTU\NTU24_PANNs\pre-trained\Wavegram_Logmel_Cnn14_mAP_0.439.pth"
+    ckpt_file =r"D:\Sean\github\cpjku_dcase23_NTU\AudioMAE\pretrained.pth"
     ######### h5 edit here ###############
     # get pointer to h5 file containing audio samples
     hf_in = open_h5('h5py_audio_wav')
@@ -299,6 +302,7 @@ def train(config):
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
 
+    pathlib.PosixPath = pathlib.WindowsPath
     checkpoint = torch.load(ckpt_file, map_location="cpu")  # Load safely to CPU, for non-PL ckpt
     # Extract the model's state_dict from within the checkpoint
     if "model" in checkpoint:
@@ -311,6 +315,7 @@ def train(config):
 
     # Load the state dictionary into the model
     pl_module.model.load_state_dict(state_dict) # loads in the ckpt for non-PL
+    print(pl_module.model)
     pl_module = load_and_modify_checkpoint(pl_module, num_classes =config.n_classes)
     sample = next(iter(train_dl))[0][0]
     # shape = pl_module.mel_forward(sample).size()
@@ -448,10 +453,10 @@ if __name__ == '__main__':
 
     # general
     parser.add_argument('--project_name', type=str, default="NTU24_MAE")
-    parser.add_argument('--experiment_name', type=str, default="NTU_MAE_FTtau_32K_FMS_DIR_1e-3_h5")
+    parser.add_argument('--experiment_name', type=str, default="NTU_MAE_FTtau_441K_FMS_DIR_1e-4_h5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
-    parser.add_argument('--gpu',type=str,default='[0]')
+    parser.add_argument('--gpu',type=str,default='[1]')
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
     parser.add_argument('--ckpt_id', type=str, default=None)  # for loading trained model, corresponds to wandb id
@@ -483,24 +488,24 @@ if __name__ == '__main__':
     #  2. constant lr phase using value specified in 'lr' (for 'ramp_down_start' - 'warm_up_len' epochs)
     #  3. linearly decreasing to value 'las_lr_value' * 'lr' (for 'ramp_down_len' epochs)
     #  4. finetuning phase using a learning rate of 'last_lr_value' * 'lr' (for the rest of epochs up to 'n_epochs')
-    parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--lr', type=float, default=1e-4)
     # parser.add_argument('--warm_up_len', type=int, default=3)
     # parser.add_argument('--ramp_down_start', type=int, default=3)
     # parser.add_argument('--ramp_down_len', type=int, default=10)
     parser.add_argument('--last_lr_value', type=float, default=0.01)  # relative to 'lr'
 
     # preprocessing
-    parser.add_argument('--resample_rate', type=int, default=32000) # default =32000
-    parser.add_argument('--window_size', type=int, default=1024)  # in samples
+    parser.add_argument('--resample_rate', type=int, default=44100) # default =32000
+    parser.add_argument('--window_size', type=int, default=800)  # in samples
     parser.add_argument('--hop_size', type=int, default=320)  # in samples
     parser.add_argument('--n_fft', type=int, default=1024)  # length (points) of fft
-    parser.add_argument('--n_mels', type=int, default=64)  # number of mel bins
-    parser.add_argument('--freqm', type=int, default=0)  # mask up to 'freqm' spectrogram bins
-    parser.add_argument('--timem', type=int, default=0)  # mask up to 'timem' spectrogram frames # can try 192
+    parser.add_argument('--n_mels', type=int, default=128)  # number of mel bins
+    parser.add_argument('--freqm', type=int, default=48)  # mask up to 'freqm' spectrogram bins
+    parser.add_argument('--timem', type=int, default=20)  # mask up to 'timem' spectrogram frames # can try 192
     parser.add_argument('--fmin', type=int, default=0)  # mel bins are created for freqs. between 'fmin' and 'fmax'
     parser.add_argument('--fmax', type=int, default=None)
-    # parser.add_argument('--fmin_aug_range', type=int, default=1)  # data augmentation: vary 'fmin' and 'fmax'
-    # parser.add_argument('--fmax_aug_range', type=int, default=1000)
+    parser.add_argument('--fmin_aug_range', type=int, default=1)  # data augmentation: vary 'fmin' and 'fmax'
+    parser.add_argument('--fmax_aug_range', type=int, default=1000)
 
     args = parser.parse_args()
     if args.evaluate:
