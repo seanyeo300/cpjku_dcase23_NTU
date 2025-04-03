@@ -489,8 +489,8 @@ if __name__ == '__main__':
     parser.add_argument('--n_mels', type=int, default=64)  # number of mel bins
     # parser.add_argument('--freqm', type=int, default=48)  # mask up to 'freqm' spectrogram bins
     # parser.add_argument('--timem', type=int, default=20)  # mask up to 'timem' spectrogram frames # can try 192
-    parser.add_argument('--fmin', type=int, default=50)  # mel bins are created for freqs. between 'fmin' and 'fmax'
-    parser.add_argument('--fmax', type=int, default=14000)
+    parser.add_argument('--fmin', type=int, default=0)  # mel bins are created for freqs. between 'fmin' and 'fmax'
+    parser.add_argument('--fmax', type=int, default=None)
     # parser.add_argument('--fmin_aug_range', type=int, default=1)  # data augmentation: vary 'fmin' and 'fmax'
     # parser.add_argument('--fmax_aug_range', type=int, default=1000)
 
