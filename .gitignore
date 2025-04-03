@@ -50,3 +50,6 @@ cams/jiw5bohu_GradCAM/street_traffic_activation_maps.pt
 cams/jiw5bohu_GradCAM/tram_activation_maps.pt
 AudioMAE/pretrained.pth
 NTU24_PANNs/pre-trained/Wavegram_Logmel_Cnn14_mAP_0.439.pth
+predictions/ensemble/sub5_6_PaSST.pt
+predictions/ensemble/sub5_single_PaSST.pt
+SSAST/SSAST-Base-Patch-400.pth
