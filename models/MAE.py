@@ -25,17 +25,17 @@ from timm.models.swin_transformer import SwinTransformerBlock
 class MaskedAutoencoderViT(nn.Module):
     """ Masked Autoencoder with VisionTransformer backbone
     """
-    def __init__(self, img_size=224, patch_size=16, stride=10, in_chans=3,
+    def __init__(self, img_size=224, patch_size=16, stride=10, in_chans=1,
                  embed_dim=1024, depth=24, num_heads=16,
                  decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
                  mlp_ratio=4., norm_layer=nn.LayerNorm, norm_pix_loss=False, 
-                 audio_exp=False, alpha=0.0, temperature=.2, mode=0, contextual_depth=8,
+                 audio_exp=True, alpha=0.0, temperature=.2, mode=0, contextual_depth=8,
                  use_custom_patch=False, split_pos=False, pos_trainable=False, use_nce=False, beta=4.0, decoder_mode=0,
                  mask_t_prob=0.6, mask_f_prob=0.5, mask_2d=False,
-                 epoch=0, no_shift=False,
+                 epoch=0, no_shift=False, classification=True
                  ):
         super().__init__()
-
+        self.classification = classification
         self.audio_exp=audio_exp
         self.embed_dim = embed_dim
         self.decoder_embed_dim = decoder_embed_dim
@@ -57,7 +57,7 @@ class MaskedAutoencoderViT(nn.Module):
         self.encoder_depth = depth
         self.contextual_depth = contextual_depth
         self.blocks = nn.ModuleList([
-            Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, qk_scale=None, norm_layer=norm_layer)
+            Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
             for i in range(depth)])
         self.norm = norm_layer(embed_dim)
 
@@ -94,23 +94,24 @@ class MaskedAutoencoderViT(nn.Module):
                     SwinTransformerBlock(
                         dim=decoder_embed_dim,
                         num_heads=16,
-                        feat_size=feat_size,
+                        # feat_size=feat_size,
                         window_size=window_size,
                         shift_size=shift_size,
                         mlp_ratio=mlp_ratio,
                         drop=0.0,
-                        drop_attn=0.0,
+                        # drop_attn=0.0,
                         drop_path=0.0,
-                        extra_norm=False,
-                        sequential_attn=False,
+                        # extra_norm=False,
+                        # sequential_attn=False,
                         norm_layer=norm_layer, #nn.LayerNorm,
+                        input_resolution=feat_size
                     )
                 )
             self.decoder_blocks = nn.ModuleList(decoder_modules)        
         else:
             # Transfomer
             self.decoder_blocks = nn.ModuleList([
-                Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, qk_scale=None, norm_layer=norm_layer)
+                Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
                 for i in range(decoder_depth)])
 
         self.decoder_norm = norm_layer(decoder_embed_dim)
