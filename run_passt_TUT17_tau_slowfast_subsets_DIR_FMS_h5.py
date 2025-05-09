@@ -19,14 +19,16 @@ from datasets.dcase24_ntu_teacher_tv2 import ntu_get_training_set_dir, ntu_get_t
 from helpers.utils import mixstyle, mixup_data
 import json
 
-torch.set_float32_matmul_precision("highest")
-# def load_and_modify_checkpoint(pl_module,num_classes=10):
-#         # Modify the final layer
-#         pl_module.model.head = nn.Sequential(
-#             nn.LayerNorm((768,), eps=1e-05, elementwise_affine=True),
-#             nn.Linear(768, num_classes)
-#         )
-#         return pl_module
+torch.set_float32_matmul_precision("high")
+def load_and_modify_checkpoint(pl_module,num_classes=10):
+        # Modify the final layer
+        pl_module.model.head = nn.Sequential(
+            nn.LayerNorm((768,), eps=1e-05, elementwise_affine=True),
+            nn.Linear(768, num_classes)
+        )
+        pl_module.model.head_dist = nn.Linear(768, num_classes)
+        
+        return pl_module
 class PLModule(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
@@ -300,7 +302,17 @@ class PLModule(pl.LightningModule):
         The specified items are used automatically in the optimization loop (no need to call optimizer.step() yourself).
         :return: dict containing optimizer and learning rate scheduler
         """
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.config.lr, weight_decay=self.config.weight_decay)
+        representation_params = []
+        for name, param in self.model.named_parameters():
+            if 'head' not in name and 'head_dist' not in name:
+                representation_params.append(param)
+        # Collect parameters for the classification heads
+        head_params = list(self.model.head.parameters()) + list(self.model.head_dist.parameters())
+        # Define the optimizer with parameter groups
+        optimizer = torch.optim.Adam([
+            {'params': representation_params, 'lr': self.config.lr},  # Low learning rate for representation layers
+            {'params': head_params, 'lr': 0.001},             # High learning rate for classifier heads
+        ], weight_decay=self.config.weight_decay)
         schedule_lambda = \
             exp_warmup_linear_down(self.config.warm_up_len, self.config.ramp_down_len, self.config.ramp_down_start,
                                    self.config.last_lr_value)
@@ -340,16 +352,16 @@ def train(config):
                          batch_size=config.batch_size)
 
     # create pytorch lightening module
-    pl_module = PLModule(config) # this initializes the model pre-trained on audioset
-    # ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
-    # assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
-    # #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
-    # for file in os.listdir(ckpt_dir):
-    #     if "epoch" in file:
-    #         ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
-    #         print(f"found ckpt file: {file}")
-    # pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
-    # pl_module = load_and_modify_checkpoint(pl_module)
+    # pl_module = PLModule(config) # this initializes the model pre-trained on audioset
+    ckpt_dir = os.path.join(config.project_name, config.ckpt_id, "checkpoints")
+    assert os.path.exists(ckpt_dir), f"No such folder: {ckpt_dir}"
+    #ckpt_file = os.path.join(ckpt_dir, "last.ckpt")
+    for file in os.listdir(ckpt_dir):
+        if "epoch" in file:
+            ckpt_file = os.path.join(ckpt_dir,file) # choosing the best model ckpt
+            print(f"found ckpt file: {file}")
+    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    pl_module = load_and_modify_checkpoint(pl_module, num_classes=10)
     # get model complexity from nessi and log results to wandb
     # ATTENTION: this is before layer fusion, therefore the MACs and Params slightly deviate from what is
     # reported in the challenge submission
@@ -405,18 +417,18 @@ def evaluate(config):
     os.makedirs(out_dir, exist_ok=True)
 
     # load lightning module from checkpoint
-    # pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
+    pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
     
     ############# h5 edit here ##############
     # Open h5 file once
     hf_in = open_h5('h5py_audio_wav')
-    # eval_hf = open_h5('h5py_audio_wav2') # only when obtaining pre-computed train
+    eval_hf = open_h5('h5py_audio_wav2') # only when obtaining pre-computed train
     # eval_hf = open_h5('h5py_audio_eval_wav')
     # load lightning module from checkpoint
     pl_module = PLModule.load_from_checkpoint(ckpt_file, config=config)
     trainer = pl.Trainer(logger=False,
                          accelerator='gpu',
-                         devices=1,
+                         devices=eval(config.gpu),
                          precision=config.precision)
     ############# h5 edit here ##############
     # evaluate lightning module on development-test split
@@ -441,15 +453,15 @@ def evaluate(config):
           f" you are allowed to use at max the following precision for model parameters: {allowed_precision} bit.")
 
     # obtain and store details on model for reporting in the technical report
-    # info = {}
-    # info['MACs'] = macs
-    # info['Params'] = params
-    # res = trainer.test(pl_module, test_dl,ckpt_path=ckpt_file)
-    # info['test'] = res
+    info = {}
+    info['MACs'] = macs
+    info['Params'] = params
+    res = trainer.test(pl_module, test_dl,ckpt_path=ckpt_file)
+    info['test'] = res
 
     ############# h5 edit here ##############
     # generate predictions on evaluation set
-    eval_dl = DataLoader(dataset=ntu_get_eval_set(hf_in),
+    eval_dl = DataLoader(dataset=ntu_get_eval_set(eval_hf),
                          worker_init_fn=worker_init_fn,
                          num_workers=config.num_workers,
                          batch_size=config.batch_size)
@@ -474,35 +486,35 @@ def evaluate(config):
     df = pd.DataFrame(df)
 
     # save eval set predictions, model state_dict and info to output folder
-    df.to_csv(os.path.join(out_dir, 'output_test.csv'), sep='\t', index=False) # REMOVE TEST SUFFIX
-    # torch.save(pl_module.model.state_dict(), os.path.join(out_dir, "model_state_dict.pt"))
-    # with open(os.path.join(out_dir, "info.json"), "w") as json_file: # REMOVE TEST SUFFIX
-    #     json.dump(info, json_file)
+    df.to_csv(os.path.join(out_dir, 'output.csv'), sep='\t', index=False)
+    torch.save(pl_module.model.state_dict(), os.path.join(out_dir, "model_state_dict.pt"))
+    with open(os.path.join(out_dir, "info.json"), "w") as json_file:
+        json.dump(info, json_file)
         
     ############# h5 edit here ##############
     close_h5(hf_in)
-    # close_h5(eval_hf)
+    close_h5(eval_hf)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
     # general
-    parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_FTtau_441K_FMS_DIR_2e-5fixh5")
+    parser.add_argument('--project_name', type=str, default="NTU25_TUT_SL")
+    parser.add_argument('--experiment_name', type=str, default="NTU_PaSST_SLTUT17_SLtau_bfbckbo6_1e-4_sub5_FMS_DIR_fixh5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     parser.add_argument('--gpu',type=str,default='[0]')
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
-    parser.add_argument('--ckpt_id', type=str, default=None)  # for loading trained model, corresponds to wandb id
+    parser.add_argument('--ckpt_id', type=str, default='bfbckbo6')  # for loading trained model, corresponds to wandb id
 
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=str, default="25")
+    parser.add_argument('--subset', type=str, default="5")
     # model
     parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
-    parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
+    parser.add_argument('--n_classes', type=int, default=15)  # classification model with 'n_classes' output neurons
     parser.add_argument('--input_fdim', type=int, default=128)
     parser.add_argument('--s_patchout_t', type=int, default=0)
     parser.add_argument('--s_patchout_f', type=int, default=6)
@@ -514,7 +526,7 @@ if __name__ == '__main__':
     parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
     parser.add_argument('--weight_decay', type=float, default=0.001)
     parser.add_argument('--roll', type=int, default=4000)  # roll waveform over time
-    parser.add_argument('--dir_prob', type=float, default=0 ) # prob. to apply device impulse response augmentation # need to specify
+    parser.add_argument('--dir_prob', type=float, default=0.6)  # prob. to apply device impulse response augmentation # need to specify
     # parser.add_argument('--mixup_alpha', type=float, default=1.0)
     # learning rate + schedule
     # phases:
@@ -522,7 +534,7 @@ if __name__ == '__main__':
     #  2. constant lr phase using value specified in 'lr' (for 'ramp_down_start' - 'warm_up_len' epochs)
     #  3. linearly decreasing to value 'las_lr_value' * 'lr' (for 'ramp_down_len' epochs)
     #  4. finetuning phase using a learning rate of 'last_lr_value' * 'lr' (for the rest of epochs up to 'n_epochs')
-    parser.add_argument('--lr', type=float, default=2e-5)
+    parser.add_argument('--lr', type=float, default=5e-5)  # default = 1e-4
     parser.add_argument('--warm_up_len', type=int, default=3)
     parser.add_argument('--ramp_down_start', type=int, default=3)
     parser.add_argument('--ramp_down_len', type=int, default=10)

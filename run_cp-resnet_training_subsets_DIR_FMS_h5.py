@@ -11,7 +11,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 from helpers.lr_schedule import exp_warmup_linear_down
 from helpers.init import worker_init_fn
-from models.passt import get_model
+from models.cp_resnet import get_model
 from models.mel import AugmentMelSTFT
 from helpers import nessi
 # from datasets.dcase23_dev import get_training_set, get_test_set, get_eval_set
@@ -46,11 +46,7 @@ class PLModule(pl.LightningModule):
                                   fmax_aug_range=config.fmax_aug_range
                                   )
 
-        self.model = get_model(arch="passt_s_swa_p16_128_ap476",
-                             n_classes=config.n_classes,
-                             input_fdim=config.input_fdim,
-                             s_patchout_t=config.s_patchout_t,
-                             s_patchout_f=config.s_patchout_f)
+        self.model = get_model(base_channels=config.base_channels)
 
         self.device_ids = ['a', 'b', 'c', 's1', 's2', 's3', 's4', 's5', 's6']
         self.label_ids = ['airport', 'bus', 'metro', 'metro_station', 'park', 'public_square', 'shopping_mall',
@@ -59,10 +55,10 @@ class PLModule(pl.LightningModule):
                               's1': "seen", 's2': "seen", 's3': "seen",
                               's4': "unseen", 's5': "unseen", 's6': "unseen"}
 
-        self.calc_device_info = True
+        
         self.epoch = 0
-        self.training_step_outputs = []
-        self.validation_step_outputs = []
+        # self.training_step_outputs = []
+        # self.validation_step_outputs = []
         self.test_step_outputs = []
         
     def mel_forward(self, x):
@@ -79,50 +75,45 @@ class PLModule(pl.LightningModule):
         x, files = eval_batch
         x = self.mel_forward(x)
         # x = x.half()
-        y_hat, embed = self.forward(x)
+        y_hat = self.forward(x)
 
         return files, y_hat
-    # def mixup_criterion(self,criterion, pred, y_a, y_b, lam):
-    #         return lam * criterion(pred, y_a) + (1 - lam) * criterion(pred, y_b)
-        
+    
     def training_step(self, batch, batch_idx):
-        criterion = torch.nn.CrossEntropyLoss()
         x, files, labels, devices, cities, teacher_logits = batch
 
         if self.mel:
             x = self.mel_forward(x)
 
+        # mixstyle
         if self.config.mixstyle_p > 0:
             x = mixstyle(x, self.config.mixstyle_p, self.config.mixstyle_alpha)
-            
-        y_hat, embed = self.forward(x)
-        labels = labels.long()
-        # inputs, targets_a, targets_b, lam = mixup_data(x, labels,
-                                                    #    self.config.mixup_alpha, use_cuda=True)
-        # inputs, targets_a, targets_b = map(Variable, (inputs,
-                                                    #   targets_a, targets_b))
+
+        # forward
+        y_hat = self.forward(x)
+        labels = labels.type(torch.LongTensor)
+        labels = labels.to(device=x.device)
+        labels.long()
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
-
-        # loss = self.mixup_criterion(criterion,y_hat, targets_a, targets_b, lam)
-
         loss = samples_loss.mean()
-        samples_loss = samples_loss.detach()
+        samples_loss = samples_loss#.detach()
+
+        devices = [d.rsplit("-", 1)[1][:-4] for d in files]
 
         _, preds = torch.max(y_hat, dim=1)
         n_correct_pred = (preds == labels).sum()
         results = {"loss": loss, "n_correct_pred": n_correct_pred, "n_pred": len(labels)}
 
-        if self.calc_device_info:
-            devices = [d.rsplit("-", 1)[1][:-4] for d in files]
-
-            for d in self.device_ids:
-                results["devloss." + d] = torch.as_tensor(0., device=self.device)
-                results["devcnt." + d] = torch.as_tensor(0., device=self.device)
-
-            for i, d in enumerate(devices):
-                results["devloss." + d] = results["devloss." + d] + samples_loss[i]
-                results["devcnt." + d] = results["devcnt." + d] + 1.
-
+        for d in self.device_ids:
+            results["devloss." + d] = torch.as_tensor(0., device=self.device)
+            results["devcnt." + d] = torch.as_tensor(0., device=self.device)
+        for i, d in enumerate(devices):
+            if d[0] == "i":
+                if self.epoch == 0 and batch_idx < 10:
+                    print(f"device {d} ignored!")
+                continue
+            results["devloss." + d] = results["devloss." + d] + samples_loss[i]
+            results["devcnt." + d] = results["devcnt." + d] + 1.
         return results
 
     def training_epoch_end(self, outputs):
@@ -131,12 +122,11 @@ class PLModule(pl.LightningModule):
         train_acc = sum([x['n_correct_pred'] for x in outputs]) * 1.0 / sum(x['n_pred'] for x in outputs)
         logs = {'train.loss': avg_loss, 'train_acc': train_acc}
 
-        if self.calc_device_info:
-            for d in self.device_ids:
-                dev_loss = torch.stack([x["devloss." + d] for x in outputs]).sum()
-                dev_cnt = torch.stack([x["devcnt." + d] for x in outputs]).sum()
-                logs["tloss." + d] = dev_loss / dev_cnt
-                logs["tcnt." + d] = dev_cnt
+        for d in self.device_ids:
+            dev_loss = torch.stack([x["devloss." + d] for x in outputs]).sum()
+            dev_cnt = torch.stack([x["devcnt." + d] for x in outputs]).sum()
+            logs["tloss." + d] = dev_loss / dev_cnt
+            logs["tcnt." + d] = dev_cnt
 
         self.log_dict(logs)
 
@@ -150,8 +140,10 @@ class PLModule(pl.LightningModule):
         if self.mel:
             x = self.mel_forward(x)
 
-        y_hat, embed = self.forward(x)
-        labels = labels.long()
+        y_hat = self.forward(x)
+        labels = labels.type(torch.LongTensor)
+        labels = labels.to(device=x.device)
+        labels.long()
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
         loss = samples_loss.mean()
 
@@ -159,6 +151,9 @@ class PLModule(pl.LightningModule):
         _, preds = torch.max(y_hat, dim=1)
         n_correct_pred_per_sample = (preds == labels)
         n_correct_pred = n_correct_pred_per_sample.sum()
+
+        devices = [d.rsplit("-", 1)[1][:-4] for d in files]
+
         results = {"val_loss": loss, "n_correct_pred": n_correct_pred, "n_pred": len(labels)}
 
         '''if self.calc_device_info:
@@ -198,7 +193,7 @@ class PLModule(pl.LightningModule):
                 logs["lloss.False" + d] = logs["lloss." + d] / logs["count." + d]'''
 
         self.log_dict(logs)
-
+    
         if self.epoch > 0:
             print()
             print(f"Validation Loss: {avg_loss}")
@@ -215,7 +210,7 @@ class PLModule(pl.LightningModule):
            
         x = self.mel_forward(x)
 
-        y_hat, embed = self.forward(x)
+        y_hat = self.forward(x)
         labels = labels.long()
         samples_loss = F.cross_entropy(y_hat, labels, reduction="none")
         # loss = samples_loss.mean()
@@ -315,8 +310,8 @@ def train(config):
     # logging is done using wandb
     wandb_logger = WandbLogger(
         project=config.project_name,
-        notes="PaSST Training for DCASE2024, incl subset rules.",
-        tags=["DCASE24"],
+        notes="CP-ResNet Training for DCASE2024, incl subset rules.",
+        tags=["Thesis2025"],
         config=config,  # this logs all hyperparameters for us
         name=config.experiment_name
     )
@@ -440,7 +435,7 @@ def evaluate(config):
     print(f"ATTENTION: According to the number of model parameters and the memory limits that apply in the challenge,"
           f" you are allowed to use at max the following precision for model parameters: {allowed_precision} bit.")
 
-    # obtain and store details on model for reporting in the technical report
+    # # obtain and store details on model for reporting in the technical report
     # info = {}
     # info['MACs'] = macs
     # info['Params'] = params
@@ -474,9 +469,9 @@ def evaluate(config):
     df = pd.DataFrame(df)
 
     # save eval set predictions, model state_dict and info to output folder
-    df.to_csv(os.path.join(out_dir, 'output_test.csv'), sep='\t', index=False) # REMOVE TEST SUFFIX
+    df.to_csv(os.path.join(out_dir, 'output_test.csv'), sep='\t', index=False)
     # torch.save(pl_module.model.state_dict(), os.path.join(out_dir, "model_state_dict.pt"))
-    # with open(os.path.join(out_dir, "info.json"), "w") as json_file: # REMOVE TEST SUFFIX
+    # with open(os.path.join(out_dir, "info.json"), "w") as json_file:
     #     json.dump(info, json_file)
         
     ############# h5 edit here ##############
@@ -487,11 +482,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Example of parser. ')
 
     # general
-    parser.add_argument('--project_name', type=str, default="NTU24_ASC")
-    parser.add_argument('--experiment_name', type=str, default="NTU_passt_FTtau_441K_FMS_DIR_2e-5fixh5")
+    parser.add_argument('--project_name', type=str, default="NTU25_ResNet_ASC")
+    parser.add_argument('--experiment_name', type=str, default="NTU_ResNet_FTtau_32K_FMS_DIR_1e-3_h5")
     parser.add_argument('--num_workers', type=int, default=0)  # number of workers for dataloaders
     parser.add_argument('--precision', type=str, default="32")
     parser.add_argument('--gpu',type=str,default='[0]')
+    parser.add_argument('--base_channels', type=int, default=32)  # base channels of model
+    
     # evaluation
     parser.add_argument('--evaluate', action='store_true')  # predictions on eval set
     parser.add_argument('--ckpt_id', type=str, default=None)  # for loading trained model, corresponds to wandb id
@@ -499,22 +496,17 @@ if __name__ == '__main__':
     # dataset
     # location to store resampled waveform
     parser.add_argument('--cache_path', type=str, default=os.path.join("datasets", "cpath"))
-    parser.add_argument('--subset', type=str, default="25")
-    # model
-    parser.add_argument('--arch', type=str, default='passt_s_swa_p16_128_ap476')  # pretrained passt model
-    parser.add_argument('--n_classes', type=int, default=10)  # classification model with 'n_classes' output neurons
-    parser.add_argument('--input_fdim', type=int, default=128)
-    parser.add_argument('--s_patchout_t', type=int, default=0)
-    parser.add_argument('--s_patchout_f', type=int, default=6)
+    parser.add_argument('--subset', type=str, default="5")
+
 
     # training
-    parser.add_argument('--n_epochs', type=int, default=25)
-    parser.add_argument('--batch_size', type=int, default=80)
-    parser.add_argument('--mixstyle_p', type=float, default=0.4)  # frequency mixstyle
+    parser.add_argument('--n_epochs', type=int, default=150)
+    parser.add_argument('--batch_size', type=int, default=256)
+    parser.add_argument('--mixstyle_p', type=float, default=0.8)  # frequency mixstyle
     parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
     parser.add_argument('--weight_decay', type=float, default=0.001)
     parser.add_argument('--roll', type=int, default=4000)  # roll waveform over time
-    parser.add_argument('--dir_prob', type=float, default=0 ) # prob. to apply device impulse response augmentation # need to specify
+    parser.add_argument('--dir_prob', type=float, default=0.4 ) # prob. to apply device impulse response augmentation # need to specify
     # parser.add_argument('--mixup_alpha', type=float, default=1.0)
     # learning rate + schedule
     # phases:
@@ -522,20 +514,20 @@ if __name__ == '__main__':
     #  2. constant lr phase using value specified in 'lr' (for 'ramp_down_start' - 'warm_up_len' epochs)
     #  3. linearly decreasing to value 'las_lr_value' * 'lr' (for 'ramp_down_len' epochs)
     #  4. finetuning phase using a learning rate of 'last_lr_value' * 'lr' (for the rest of epochs up to 'n_epochs')
-    parser.add_argument('--lr', type=float, default=2e-5)
-    parser.add_argument('--warm_up_len', type=int, default=3)
-    parser.add_argument('--ramp_down_start', type=int, default=3)
-    parser.add_argument('--ramp_down_len', type=int, default=10)
-    parser.add_argument('--last_lr_value', type=float, default=0.01)  # relative to 'lr'
+    parser.add_argument('--lr', type=float, default=0.001)
+    parser.add_argument('--warm_up_len', type=int, default=15)
+    parser.add_argument('--ramp_down_start', type=int, default=50)
+    parser.add_argument('--ramp_down_len', type=int, default=85)
+    parser.add_argument('--last_lr_value', type=float, default=0.005)  # relative to 'lr'
 
     # preprocessing
-    parser.add_argument('--resample_rate', type=int, default=44100) # default =32000
-    parser.add_argument('--window_size', type=int, default=800)  # in samples
-    parser.add_argument('--hop_size', type=int, default=320)  # in samples
-    parser.add_argument('--n_fft', type=int, default=1024)  # length (points) of fft
-    parser.add_argument('--n_mels', type=int, default=128)  # number of mel bins
+    parser.add_argument('--resample_rate', type=int, default=22050)
+    parser.add_argument('--window_size', type=int, default=3072)  # in samples
+    parser.add_argument('--hop_size', type=int, default=750)  # in samples
+    parser.add_argument('--n_fft', type=int, default=4096)  # length (points) of fft
+    parser.add_argument('--n_mels', type=int, default=256)  # number of mel bins
     parser.add_argument('--freqm', type=int, default=48)  # mask up to 'freqm' spectrogram bins
-    parser.add_argument('--timem', type=int, default=20)  # mask up to 'timem' spectrogram frames # can try 192
+    parser.add_argument('--timem', type=int, default=0)  # mask up to 'timem' spectrogram frames
     parser.add_argument('--fmin', type=int, default=0)  # mel bins are created for freqs. between 'fmin' and 'fmax'
     parser.add_argument('--fmax', type=int, default=None)
     parser.add_argument('--fmin_aug_range', type=int, default=1)  # data augmentation: vary 'fmin' and 'fmax'

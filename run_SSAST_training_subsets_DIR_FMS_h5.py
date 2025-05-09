@@ -519,7 +519,7 @@ if __name__ == '__main__':
     # parser.add_argument('--task', type=str, default='ft_cls')
     
     # training
-    parser.add_argument('--n_epochs', type=int, default=50)
+    parser.add_argument('--n_epochs', type=int, default=25)
     parser.add_argument('--batch_size', type=int, default=80)
     parser.add_argument('--mixstyle_p', type=float, default=0.4)  # frequency mixstyle
     parser.add_argument('--mixstyle_alpha', type=float, default=0.4)
@@ -533,7 +533,7 @@ if __name__ == '__main__':
     #  2. constant lr phase using value specified in 'lr' (for 'ramp_down_start' - 'warm_up_len' epochs)
     #  3. linearly decreasing to value 'las_lr_value' * 'lr' (for 'ramp_down_len' epochs)
     #  4. finetuning phase using a learning rate of 'last_lr_value' * 'lr' (for the rest of epochs up to 'n_epochs')
-    parser.add_argument('--lr', type=float, default=2e-5)
+    parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--warm_up_len', type=int, default=3)
     parser.add_argument('--ramp_down_start', type=int, default=3)
     parser.add_argument('--ramp_down_len', type=int, default=10)
