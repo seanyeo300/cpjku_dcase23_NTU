@@ -57,3 +57,20 @@ h5py_ICME_128_1s_mel
 h5py_TUT_2017_128_mel
 h5py_TUT_2018_128_mel
 
+predictions/ensemble/sub5_12_hetero_BCBL_mixaug_SFT.pt
+predictions/ensemble/sub5_12_hetero_BCBL_mixaug_SIT.pt
+predictions/ensemble/sub5_12_hetero_BCBL_sameaug_SFT.pt
+predictions/ensemble/sub5_12_hetero_BCBL_sameaug_SIT.pt
+predictions/ensemble/sub5_12_hetero_CPR_test_mixaug_SIT.pt
+predictions/ensemble/sub5_12_hetero_CPR_test_sameaug_SIT.pt
+predictions/ensemble/sub5_12_hetero_sameaug_SFT.pt
+predictions/ensemble/sub5_12_hetero_sameaug_SIT.pt
+predictions/ensemble/sub5_12_hetero_SFT.pt
+predictions/ensemble/sub5_12_hetero_SIT.pt
+predictions/ensemble/sub5_12_homo_SFT.pt
+predictions/ensemble/sub5_12_homo_SIT.pt
+predictions/ensemble/sub5_6_hetero_mixaug_SIT.pt
+predictions/ensemble/sub5_ensemble_6_BCBL.pt
+predictions/ensemble/sub5_ensemble_6_CPR.pt
+predictions/ensemble/sub5_ensemble_6SIT_6BCBL_max_vote.pt
+predictions/ensemble/sub5_ensemble_6SIT_6BCBL_weighted_linear.pt
