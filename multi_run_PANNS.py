@@ -20,7 +20,7 @@ if __name__ == "__main__":
     script_name = 'run_PANN_training_subsets_DIR_FMS_h5.py'
     
     # Base arguments (common to all runs, except experiment name and ckpt_id)
-    base_args = ["--subset", "5", "--gpu", "[1]" ,"--n_epochs", "12" ,"--dir_prob", "0.6", "--mixstyle_p", "0.4", "--weight_decay", "0.001", "--lr", "1e-4", "--resample_rate", "44100"]
+    base_args = ["--subset", "100", "--gpu", "[0]" ,"--n_epochs", "12" ,"--dir_prob", "0.6", "--mixstyle_p", "0.4", "--weight_decay", "0.001", "--lr", "8e-5", "--resample_rate", "44100"]
     
     # List of tuples containing checkpoint IDs and their corresponding experiment names
     ckpt_experiment_pairs = [
@@ -29,11 +29,11 @@ if __name__ == "__main__":
         # ("dbl1yun4", "NTU_KD_Var1-T_SIT-S_FMS_sub5_fixh5"),      #SIT FMS
         # ("lm7o54or", "NTU_KD_Var1-T_SeqFT-S_FMS_DIR_sub5_fixh5"),#SeqFT
         # ("f5hhbj59", "NTU_KD_Var1-T_FTtau-S_FMS_DIR_sub5_fixh5"),#FTtau
-        (None, "NTU_PANNs_FTtau_441K_nofmin_FMS_DIR_1e-4_adamw_WD0.001_h5")          #Ptau
+        (None, "NTU_PANNs_FTtau_441K_nofmin_FMS_DIR_8e-5_adamw_WD0.001_h5")          #Ptau
     ]
     
     # Number of times to repeat each experiment
-    num_repeats = 6
+    num_repeats = 1
 
     # Run the script with different checkpoint IDs and experiment names
     run_multiple_scripts(script_name, base_args, ckpt_experiment_pairs, num_repeats)

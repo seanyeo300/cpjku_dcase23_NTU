@@ -35,13 +35,17 @@ def run_multiple_scripts(script_name, base_args, ckpt_experiment_pairs, num_repe
 if __name__ == "__main__":
     # Define the script to run
     # script_name = 'run_passt_cochl_tau_slowfast_subsets_DIR_FMS_h5.py'
-    script_name = 'run_passt_tau_tau_slowfast_subsets_DIR_FMS_h5.py'
+    # script_name = 'run_passt_tau_tau_slowfast_subsets_DIR_FMS_h5.py'
+    # script_name = 'run_passt_TUT17_tau_slowfast_subsets_DIR_FMS_h5.py'
+    # script_name = 'run_passt_TUT18_tau_slowfast_subsets_DIR_FMS_h5.py'
+    # script_name = 'run_passt_ICME_tau_slowfast_subsets_DIR_FMS_h5.py'
     # script_name = 'run_passt_cochl_PT_FT_tau_subsets_h5.py'
     # script_name = 'run_training_DynMN_h5_PL.py'
     # script_name = 'run_passt_training_subsets_DIR_FMS_h5.py'
+    script_name = 'run_cp-resnet_training_subsets_DIR_FMS_h5.py'
     # Base arguments (common to all runs, except experiment name and ckpt_id)
-    base_args = ['--gpu','[0]',"--subset", "10", "--dir_prob", "0.6", "--mixstyle_p", "0.4","--n_epochs", "25","--n_classes","5","--lr","7e-6"]
-    
+    # base_args = ['--gpu','[0]',"--subset", "5", "--dir_prob", "0.6", "--mixstyle_p", "0.4","--n_epochs", "25","--n_classes","10","--lr","1e-5"]
+    base_args = ['--gpu','[0]',"--subset", "5", "--dir_prob", "0.4", "--mixstyle_p", "0.8","--mixstyle_alpha", "0.4","--n_epochs", "150","--lr","1e-3"]# "--resample_rate", "44100"]
     # List of tuples containing checkpoint IDs and their corresponding experiment names
     ckpt_experiment_pairs = [
 
@@ -51,7 +55,7 @@ if __name__ == "__main__":
         # ("wk50wxro", "NTU_PaSST_SLcs_FTtau_wk50wxro_sub25_FMS_DIR_fixh5"),       #SL 1e-4 SIT
         # ("qrrag30b", "NTU_PaSST_SLcs_FTtau_qrrag30b_sub25_FMS_DIR_fixh5"),       #SL 1e-5 SIT
         # ("7qghtor2", "NTU_PaSST_SLcs_FTtau_7qghtor2_sub25_FMS_DIR_fixh5")        #SL 1e-6 SIT 
-        # ("wk50wxro", "NTU_PaSST_SLcs_SLtau_wk50wxro_sub2.5_DIR_fixh5"),           #SL 1e-4 DSIT csfull 
+        # ("wk50wxro", "NTU_PaSST_SLcs_SLtau_wk50wxro_sub5_FMS_DIR_fixh5"),           #SL 1e-4 DSIT csfull 
         # ("qrrag30b", "NTU_PaSST_SLcs_SLtau_qrrag30b_sub25_FMS_DIR_fixh5"),       #SL 1e-5 DSIT 
         # ("3ngqa9o9", "NTU_PaSST_SLtau_SLtau_3ngqa9o9_5e-6_rem10_CL_preserved_FMS_DIR_fixh5"),       #SL 3e-5 DSIT 
         
@@ -70,7 +74,19 @@ if __name__ == "__main__":
         # ("bdooa7vw", "NTU_PaSST_SLcsOL_sub100_SLtau_bdooa7vw_sub5_FMS_DIR_fixh5"),       #SL 1e-4 DSIT
         
         ## Queued for experiment##
-        ("b0d8vasu","NTU_PaSST_SLtau_SLtau5_5_b0d8vasu_7e-6_sub10_FMS_DIR_fixh5_retest"),         #SL 6e-5, 5 class, SL TAU 10 class ) TAU bot5
+        # ("bfbckbo6","NTU_PaSST_SLTUT17_SLtau_bfbckbo6_3e-5_sub5_FMS_DIR_fixh5"),  #TUT17 15 class, SL TAU 10 class )
+        # ("vwy957b3","NTU_PaSST_SLTUT17_SLtau_vwy957b3_1e-4_sub5_FMS_DIR_fixh5"),  #TUT17 15 class, SL TAU 10 class )
+        # ("7dbbf1hp","NTU_PaSST_SLTUT17_SLtau_7dbbf1hp_2e-5_sub25_FMS_DIR_fixh5_retest"),  #TUT17 15 class, SL TAU 10 class ) Use this
+        
+        # ("tpj4jfz0","NTU_PaSST_SLTUT18_SLtau_tpj4jfz0_1e-5_sub100_FMS_DIR_fixh5"),  #TUT18 10 class, SL TAU 10 class ) Use this
+        # ("snrvpcz4","NTU_PaSST_SLTUT18_SLtau_snrvpcz4_8e-5_sub5_FMS_DIR_fixh5"),  #TUT18 10 class, SL TAU 10 class )
+        
+        # ("wltvv3bn","NTU_PaSST_SLICME_SLtau_wltvv3bn_1e-5_sub5_FMS_DIR_fixh5"),  #ICME 10 class, SL TAU 10 class )
+        # ("m1ki67v0","NTU_PaSST_SLICME_SLtau_m1ki67v0_1e-5_sub5_FMS_DIR_fixh5"),  #ICME 10 class, SL TAU 10 class )
+        # ("1qnd88q7","NTU_PaSST_SLICME_SLtau_1qnd88q7_1e-5_sub100_FMS_DIR_fixh5"),  #ICME 10 class, SL TAU 10 class ) Use this
+        
+        
+        # ("b0d8vasu","NTU_PaSST_SLtau_SLtau5_5_b0d8vasu_7e-6_sub10_FMS_DIR_fixh5_retest"),         #SL 6e-5, 5 class, SL TAU 10 class ) TAU bot5
         # ("dxoxzxo5","NTU_PaSST_SLtau_SLtau5_5_dxoxzxo5_6e-6_sub5_FMS_DIR_fixh5_retest"),         #SL 9e-5, 5 class, SL TAU 10 class ) TAU5OL
         # ("b1irhtw0", "NTU_PaSST_SLtau_SLtau25_5_b1irhtw0_5e-6_sub5_FMS_DIR_fixh5"),         #SL 1e-5, 5 class, SL TAU 10 class 
         # ("xm19y0a3",   "NTU_PaSST_SLtau_SLtau25_8_xm19y0a3_5e-6_sub5_FMS_DIR_fixh5"),         #SL 3e-5, 8 class, SL TAU 10 class
@@ -86,14 +102,13 @@ if __name__ == "__main__":
         # ("fjcq1094","NTU_PaSST_SLcsOL_sub100_SLtau_fjcq1094_1e-5_sub2.5_FMS_DIR_fixh5")         #CSfull_in SL 1e-5,1e-4 DSIT
         # ("g1gzf3te","NTU_PaSST_SLcsOL_sub10_SLtau_g1gzf3te_1e-5_sub50_FMS_DIR_fixh5")         #CS5_in SL 1e-5,1e-4 DSIT
         # ("wk50wxro", "NTU_PaSST_SLcs_SLtau_wk50wxro_sub2.5_DIR_fixh5"),           #SL 1e-4 DSIT csfull 
-        # (None, "NTU_PaSST_FTtau_sub2.5_FMS_DIR_fixh5")                        #PTau First model trained used mixup, have disabled default mixup for the next 5
-        
+        # (None, "NTU_PaSST_FTtau_sub5_FMS_DIR_fixh5")                        #PTau First model trained used mixup, have disabled default mixup for the next 5
+        (None, "NTU_ResNet_FTtau_32K_FMS_DIR_old_1e-3_h5")
 
     ] 
     
     # Number of times to repeat each experiment
-    num_repeats = 6
-
+    num_repeats = 3
     # Run the script with different checkpoint IDs and experiment names
     run_multiple_scripts(script_name, base_args, ckpt_experiment_pairs, num_repeats)
     

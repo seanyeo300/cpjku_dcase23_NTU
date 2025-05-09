@@ -53,3 +53,6 @@ NTU24_PANNs/pre-trained/Wavegram_Logmel_Cnn14_mAP_0.439.pth
 predictions/ensemble/sub5_6_PaSST.pt
 predictions/ensemble/sub5_single_PaSST.pt
 SSAST/SSAST-Base-Patch-400.pth
+h5py_ICME_128_1s_mel
+h5py_TUT_2017_128_mel
+h5py_TUT_2018_128_mel
